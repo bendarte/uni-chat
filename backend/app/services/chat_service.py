@@ -393,8 +393,12 @@ class ChatService:
 
         stripped = (message or "").strip().lower()
         words = stripped.split()
-        # Single-word queries that look like programme names should search directly.
-        if len(words) == 1 and any(stripped.endswith(s) for s in cls._PROGRAMME_SUFFIXES):
+        # Single-word queries that look like programme names or academic subjects should search directly.
+        _SUBJECT_SUFFIXES = ("vetenskap", "ekonomi", "teknik", "teknologi", "logi", "ologi", "nomik")
+        if len(words) == 1 and (
+            any(stripped.endswith(s) for s in cls._PROGRAMME_SUFFIXES)
+            or any(stripped.endswith(s) for s in _SUBJECT_SUFFIXES)
+        ):
             return []
         if len(words) <= 2:
             return ["interests"]
@@ -1550,10 +1554,15 @@ class ChatService:
             intent["is_exploratory"] = False
             intent["needs_clarification"] = False
 
-        # Single-word programme names like "läkarprogrammet" should search directly without asking for interests.
+        # Single-word programme names or academic subjects should search directly without clarification.
         _stripped = message.strip().lower()
         _words = _stripped.split()
-        if len(_words) == 1 and any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES):
+        _ACADEMIC_SUFFIXES = ("vetenskap", "ekonomi", "teknik", "teknologi", "logi", "ologi", "nomik", "kunskap")
+        if len(_words) == 1 and (
+            any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES)
+            or any(_stripped.endswith(s) for s in _ACADEMIC_SUFFIXES)
+            or intent.get("domain")  # single-word query with detected domain → search directly
+        ):
             intent["is_vague"] = False
             intent["is_exploratory"] = False
             intent["needs_clarification"] = False
@@ -1564,6 +1573,16 @@ class ChatService:
             and len(_words) <= 5
             and intent.get("domain")
             and not intent.get("is_comparison_query")
+        ):
+            intent["is_vague"] = False
+            intent["is_exploratory"] = False
+
+        # "master/kandidat i X" — study level stated explicitly in text means the query is not vague.
+        _LEVEL_WORDS = ("master", "kandidat", "bachelor", "magister", "licentiat")
+        if (
+            len(_words) <= 5
+            and any(w in _LEVEL_WORDS for w in _words)
+            and intent.get("domain")
         ):
             intent["is_vague"] = False
             intent["is_exploratory"] = False
