@@ -543,19 +543,10 @@ class IntentService:
         explicit_terms = [
             "interagerar med teknik",
             "interagera med teknik",
-            "ux",
-            "user experience",
-            "interaktionsdesign",
-            "användarupplevelse",
-            "anvandarupplevelse",
-            "human-computer interaction",
-            "hci",
-            "människa-teknik",
-            "manniska-teknik",
         ]
         psychology_terms = ["psykologi", "beteende", "människan", "manniskan", "människa", "manniska"]
         tech_terms = ["teknik", "digital", "interaktion", "interagerar", "system", "produkt"]
-        design_terms = ["design", "ux", "interaktionsdesign", "användarupplevelse", "anvandarupplevelse"]
+        design_terms: list = []
 
         has_explicit = any(term in text for term in explicit_terms)
         has_psychology_tech = any(term in text for term in psychology_terms) and any(term in text for term in tech_terms)
