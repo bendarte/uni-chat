@@ -400,19 +400,24 @@ class ChatService:
             or any(stripped.endswith(s) for s in _SUBJECT_SUFFIXES)
         ):
             return []
-        # Filter-only queries (level, pace, language, city — no subject) should search directly.
+        # Filter-only queries (level, pace, language, city, duration — no subject) should search directly.
         _FILTER_WORDS = frozenset({
             "master", "kandidat", "bachelor", "magister", "licentiat",
             "heltid", "deltid", "halvfart", "distans", "online",
             "deltidsstudier", "kvällsstudier", "kvälls",
             "engelska", "english", "svenska",
             "program", "programme", "programs", "programmes",
+            "utbildning", "utbildningar",
+            "flexibelt", "flexibel", "schema",
+            "ettårig", "tvåårig", "treårig", "fyraårig", "femårig", "sexårig",
             "stockholm", "göteborg", "malmö", "lund", "uppsala", "linköping",
             "umeå", "örebro", "luleå", "karlstad",
         })
         _STOP_WORDS = frozenset({"på", "i", "och", "med", "för", "om"})
         _content_words = [w for w in words if w not in _STOP_WORDS]
-        if _content_words and all(w in _FILTER_WORDS for w in _content_words):
+        # Also treat duration adjectives (NNårig) as filter words via pattern.
+        import re as _re
+        if _content_words and all(w in _FILTER_WORDS or bool(_re.fullmatch(r'\d+årig', w)) for w in _content_words):
             return []
         if len(words) <= 2:
             return ["interests"]
@@ -1577,7 +1582,8 @@ class ChatService:
                 any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES)
                 or any(_stripped.endswith(s) for s in _ACADEMIC_SUFFIXES)
             ))
-            or (len(_words) <= 6 and intent.get("domain") and not intent.get("is_exploratory") and not intent.get("is_comparison_query"))
+            # If domain is detected and query is short, search directly — even if phrasing is exploratory.
+            or (len(_words) <= 6 and intent.get("domain") and not intent.get("is_comparison_query"))
         ):
             intent["is_vague"] = False
             intent["is_exploratory"] = False
@@ -1586,7 +1592,7 @@ class ChatService:
         # "X och Y" compound topic queries where a domain is already detected should search directly.
         if (
             " och " in _stripped
-            and len(_words) <= 5
+            and len(_words) <= 9
             and intent.get("domain")
             and not intent.get("is_comparison_query")
         ):
@@ -1603,19 +1609,23 @@ class ChatService:
             intent["is_vague"] = False
             intent["is_exploratory"] = False
 
-        # Filter-only queries (level, pace, language, city with no subject) should search directly.
+        # Filter-only queries (level, pace, language, city, duration with no subject) should search directly.
         _FILTER_WORDS_INTENT = frozenset({
             "master", "kandidat", "bachelor", "magister", "licentiat",
             "heltid", "deltid", "halvfart", "distans", "online",
             "deltidsstudier", "kvällsstudier", "kvälls",
             "engelska", "english", "svenska",
             "program", "programme", "programs", "programmes",
+            "utbildning", "utbildningar",
+            "flexibelt", "flexibel", "schema",
+            "ettårig", "tvåårig", "treårig", "fyraårig", "femårig", "sexårig",
             "stockholm", "göteborg", "malmö", "lund", "uppsala", "linköping",
             "umeå", "örebro", "luleå", "karlstad",
         })
         _STOP_WORDS_INTENT = frozenset({"på", "i", "och", "med", "för", "om"})
         _content_intent = [w for w in _words if w not in _STOP_WORDS_INTENT]
-        if _content_intent and all(w in _FILTER_WORDS_INTENT for w in _content_intent):
+        import re as _re_intent
+        if _content_intent and all(w in _FILTER_WORDS_INTENT or bool(_re_intent.fullmatch(r'\d+årig', w)) for w in _content_intent):
             intent["is_vague"] = False
             intent["is_exploratory"] = False
             intent["needs_clarification"] = False
