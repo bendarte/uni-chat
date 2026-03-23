@@ -400,6 +400,20 @@ class ChatService:
             or any(stripped.endswith(s) for s in _SUBJECT_SUFFIXES)
         ):
             return []
+        # Filter-only queries (level, pace, language, city — no subject) should search directly.
+        _FILTER_WORDS = frozenset({
+            "master", "kandidat", "bachelor", "magister", "licentiat",
+            "heltid", "deltid", "halvfart", "distans", "online",
+            "deltidsstudier", "kvällsstudier", "kvälls",
+            "engelska", "english", "svenska",
+            "program", "programme", "programs", "programmes",
+            "stockholm", "göteborg", "malmö", "lund", "uppsala", "linköping",
+            "umeå", "örebro", "luleå", "karlstad",
+        })
+        _STOP_WORDS = frozenset({"på", "i", "och", "med", "för", "om"})
+        _content_words = [w for w in words if w not in _STOP_WORDS]
+        if _content_words and all(w in _FILTER_WORDS for w in _content_words):
+            return []
         if len(words) <= 2:
             return ["interests"]
         return []
@@ -1589,6 +1603,23 @@ class ChatService:
             intent["is_vague"] = False
             intent["is_exploratory"] = False
 
+        # Filter-only queries (level, pace, language, city with no subject) should search directly.
+        _FILTER_WORDS_INTENT = frozenset({
+            "master", "kandidat", "bachelor", "magister", "licentiat",
+            "heltid", "deltid", "halvfart", "distans", "online",
+            "deltidsstudier", "kvällsstudier", "kvälls",
+            "engelska", "english", "svenska",
+            "program", "programme", "programs", "programmes",
+            "stockholm", "göteborg", "malmö", "lund", "uppsala", "linköping",
+            "umeå", "örebro", "luleå", "karlstad",
+        })
+        _STOP_WORDS_INTENT = frozenset({"på", "i", "och", "med", "för", "om"})
+        _content_intent = [w for w in _words if w not in _STOP_WORDS_INTENT]
+        if _content_intent and all(w in _FILTER_WORDS_INTENT for w in _content_intent):
+            intent["is_vague"] = False
+            intent["is_exploratory"] = False
+            intent["needs_clarification"] = False
+
         previous_domains = set(profile.get("current_domains") or ([profile["current_domain"]] if profile.get("current_domain") else []))
         current_domains = set(intent.get("domains") or ([intent["domain"]] if intent.get("domain") else []))
         if current_domains and previous_domains and not (previous_domains & current_domains):
@@ -1770,7 +1801,9 @@ class ChatService:
             recommendations = self.recommender.generate(profile, fallback_programs, limit=5)
 
         # If city filter is active and results are still empty, widen to all of Sweden.
-        if not recommendations and not intent.get("is_listing_query") and effective_filters.get("cities"):
+        # Distance/Online listing queries are also allowed to widen since the DB has very few distance programmes.
+        _is_distance_listing = (effective_filters.get("cities") or []) == ["Online"]
+        if not recommendations and (not intent.get("is_listing_query") or _is_distance_listing) and effective_filters.get("cities"):
             original_cities = effective_filters.get("cities") or []
             widened_profile = dict(profile)
             widened_profile["preferred_cities"] = []
@@ -1827,6 +1860,24 @@ class ChatService:
                 recommendations = lang_widened_recs
                 citation_programs = lang_widened_programs
                 widened_from_language = self._display_language(original_language)
+
+        # If study_pace filter is active and results are still empty, widen by removing pace.
+        widened_from_pace: Optional[str] = None
+        if not recommendations and not intent.get("is_listing_query") and effective_filters.get("study_pace"):
+            pace_widened_profile = dict(profile)
+            pace_widened_profile["study_pace"] = None
+            pace_widened_filters = dict(effective_filters)
+            pace_widened_filters["study_pace"] = None
+            pace_widened_programs = self.retrieval.search_programs(
+                query=retrieval_query,
+                filters=pace_widened_filters,
+                profile=pace_widened_profile,
+            )
+            pace_widened_recs = self.recommender.generate(pace_widened_profile, pace_widened_programs, limit=5)
+            if pace_widened_recs:
+                recommendations = pace_widened_recs
+                citation_programs = pace_widened_programs
+                widened_from_pace = str(effective_filters["study_pace"])
 
         active_filters = {
             "city": profile.get("preferred_cities")[0] if profile.get("preferred_cities") else "",
@@ -1889,6 +1940,20 @@ class ChatService:
                     answer = (
                         f"Inga program på {widened_from_language} hittades för din fråga — "
                         f"här är de bästa matchningarna oavsett språk i stället. "
+                        f"Toppmatch är {lead.program} vid {lead.university}."
+                    )
+            elif widened_from_pace:
+                pace_label = widened_from_pace.replace("part-time", "deltid").replace("full-time", "heltid")
+                if lang == "en":
+                    answer = (
+                        f"No {widened_from_pace} programmes found matching your query — "
+                        f"here are the best matches regardless of study pace instead. "
+                        f"Top match is {lead.program} at {lead.university}."
+                    )
+                else:
+                    answer = (
+                        f"Inga program på {pace_label} hittades för din fråga — "
+                        f"här är de bästa matchningarna oavsett studietakt i stället. "
                         f"Toppmatch är {lead.program} vid {lead.university}."
                     )
             elif intent.get("is_listing_query") and active_filters.get("city"):
