@@ -1550,6 +1550,24 @@ class ChatService:
             intent["is_exploratory"] = False
             intent["needs_clarification"] = False
 
+        # Single-word programme names like "läkarprogrammet" should search directly without asking for interests.
+        _stripped = message.strip().lower()
+        _words = _stripped.split()
+        if len(_words) == 1 and any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES):
+            intent["is_vague"] = False
+            intent["is_exploratory"] = False
+            intent["needs_clarification"] = False
+
+        # "X och Y" compound topic queries where a domain is already detected should search directly.
+        if (
+            " och " in _stripped
+            and len(_words) <= 5
+            and intent.get("domain")
+            and not intent.get("is_comparison_query")
+        ):
+            intent["is_vague"] = False
+            intent["is_exploratory"] = False
+
         previous_domains = set(profile.get("current_domains") or ([profile["current_domain"]] if profile.get("current_domain") else []))
         current_domains = set(intent.get("domains") or ([intent["domain"]] if intent.get("domain") else []))
         if current_domains and previous_domains and not (previous_domains & current_domains):
