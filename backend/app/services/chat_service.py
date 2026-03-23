@@ -478,7 +478,9 @@ class ChatService:
         reset["interests"] = []
         reset["career_goals"] = []
         reset["current_tracks"] = []
+        reset["current_domain"] = None
         reset["current_domains"] = []
+        reset["current_question_type"] = None
         reset["clarification_stage"] = None
         reset["clarification_options"] = []
         reset["selected_guidance_option"] = None
@@ -593,7 +595,7 @@ class ChatService:
             citations.append(
                 Citation(
                     program_id=str(rec.program_id),
-                    title=str(program.get("name") or rec.program),
+                    title=str(program.get("name") or rec.name),
                     university=str(program.get("university") or rec.university),
                     url=url,
                     snippet=snippet,
@@ -923,11 +925,11 @@ class ChatService:
                 RecommendationItem(
                     program_id=str(program.get("program_id") or ""),
                     source_id=f"ref-{str(program.get('program_id') or '')[:8]}",
-                    program=str(program.get("name") or ""),
+                    name=str(program.get("name") or ""),
                     university=str(program.get("university") or ""),
                     city=self._display_city(str(program.get("city") or city_label)),
                     explanation=explanation_payload.get("explanation", []),
-                    source=str(program.get("source_url") or ""),
+                    source_url=str(program.get("source_url") or ""),
                     score=1.0,
                 )
             )
@@ -1543,6 +1545,20 @@ class ChatService:
             return typed_follow_up_response
 
         reset_probe_intent = self.intent_service.analyze(message, profile={})
+
+        # Early domain-switch detection using unbiased probe intent — must run BEFORE
+        # the biased intent analysis so profile is clean when intent is re-analyzed.
+        _probe_domains = set(
+            reset_probe_intent.get("domains")
+            or ([reset_probe_intent["domain"]] if reset_probe_intent.get("domain") else [])
+        )
+        _profile_domains = set(
+            profile.get("current_domains")
+            or ([profile["current_domain"]] if profile.get("current_domain") else [])
+        )
+        if _probe_domains and _profile_domains and not (_probe_domains & _profile_domains):
+            profile = self._reset_domain_context(profile)
+
         if self._should_hard_reset_context(message, extracted, filters, reset_probe_intent):
             profile = self._hard_reset_context(profile)
 
@@ -1905,52 +1921,52 @@ class ChatService:
                         answer = (
                             f"No programs found in {widened_from_city} matching {filter_summary} — "
                             f"here are the best matches from all of Sweden instead. "
-                            f"Top match is {lead.program} at {lead.university}."
+                            f"Top match is {lead.name} at {lead.university}."
                         )
                     else:
                         answer = (
                             f"No programs found in {widened_from_city} matching your profile — "
                             f"here are the best matches from all of Sweden instead. "
-                            f"Top match is {lead.program} at {lead.university}."
+                            f"Top match is {lead.name} at {lead.university}."
                         )
                 else:
                     if filter_summary:
                         answer = (
                             f"Hittade inga program i {widened_from_city} som matchar {filter_summary} — "
                             f"här är de bästa matchningarna från hela Sverige i stället. "
-                            f"Toppmatch är {lead.program} vid {lead.university}."
+                            f"Toppmatch är {lead.name} vid {lead.university}."
                         )
                     else:
                         answer = (
                             f"Hittade inga program i {widened_from_city} som matchar din profil — "
                             f"här är de bästa matchningarna från hela Sverige i stället. "
-                            f"Toppmatch är {lead.program} vid {lead.university}."
+                            f"Toppmatch är {lead.name} vid {lead.university}."
                         )
             elif widened_from_level:
                 if lang == "en":
                     answer = (
                         f"No {widened_from_level} programmes found matching your query — "
                         f"here are the best matches across all levels instead. "
-                        f"Top match is {lead.program} at {lead.university}."
+                        f"Top match is {lead.name} at {lead.university}."
                     )
                 else:
                     answer = (
                         f"Inga {widened_from_level}program hittades för din fråga — "
                         f"här är de bästa matchningarna oavsett nivå i stället. "
-                        f"Toppmatch är {lead.program} vid {lead.university}."
+                        f"Toppmatch är {lead.name} vid {lead.university}."
                     )
             elif widened_from_language:
                 if lang == "en":
                     answer = (
                         f"No programmes in {widened_from_language} found matching your query — "
                         f"here are the best matches regardless of language instead. "
-                        f"Top match is {lead.program} at {lead.university}."
+                        f"Top match is {lead.name} at {lead.university}."
                     )
                 else:
                     answer = (
                         f"Inga program på {widened_from_language} hittades för din fråga — "
                         f"här är de bästa matchningarna oavsett språk i stället. "
-                        f"Toppmatch är {lead.program} vid {lead.university}."
+                        f"Toppmatch är {lead.name} vid {lead.university}."
                     )
             elif widened_from_pace:
                 pace_label = widened_from_pace.replace("part-time", "deltid").replace("full-time", "heltid")
@@ -1958,13 +1974,13 @@ class ChatService:
                     answer = (
                         f"No {widened_from_pace} programmes found matching your query — "
                         f"here are the best matches regardless of study pace instead. "
-                        f"Top match is {lead.program} at {lead.university}."
+                        f"Top match is {lead.name} at {lead.university}."
                     )
                 else:
                     answer = (
                         f"Inga program på {pace_label} hittades för din fråga — "
                         f"här är de bästa matchningarna oavsett studietakt i stället. "
-                        f"Toppmatch är {lead.program} vid {lead.university}."
+                        f"Toppmatch är {lead.name} vid {lead.university}."
                     )
             elif intent.get("is_listing_query") and active_filters.get("city"):
                 city_label = self._display_city(active_filters["city"])
@@ -1995,9 +2011,9 @@ class ChatService:
                             answer = f"Här är {len(recommendations)} {noun} jag hittade i {city_label}."
             else:
                 if lang == "en":
-                    answer = f"Here are some programmes that match your profile. Top match right now is {lead.program} at {lead.university}."
+                    answer = f"Here are some programmes that match your profile. Top match right now is {lead.name} at {lead.university}."
                 else:
-                    answer = f"Här är några program som matchar din profil. Toppmatch just nu är {lead.program} vid {lead.university}."
+                    answer = f"Här är några program som matchar din profil. Toppmatch just nu är {lead.name} vid {lead.university}."
         else:
             broadening_hint = self._location_broadening_hint(profile)
             broadening_hint_en = (
