@@ -16,8 +16,10 @@ from urllib.error import HTTPError, URLError
 
 import requests
 
-BASE_URL = "http://localhost:8000"
-API_KEY = "REMOVED_API_KEY"
+import os
+
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+API_KEY = os.environ.get("BACKEND_API_KEY", "")
 HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
 results = []
