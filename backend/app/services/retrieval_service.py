@@ -92,7 +92,7 @@ class RetrievalService:
     def __init__(self) -> None:
         self.logger = logging.getLogger("uvicorn.error")
         self.qdrant = get_qdrant_client()
-        self.client = OpenAI(api_key=settings.openai_api_key, timeout=20.0, max_retries=0) if settings.openai_api_key else None
+        self.client = OpenAI(api_key=settings.openai_api_key, timeout=12.0, max_retries=0) if settings.openai_api_key else None
         ensure_program_collection()
 
     def create_embedding(self, text: str) -> List[float]:
@@ -285,7 +285,7 @@ class RetrievalService:
                 ],
                 max_tokens=80,
                 temperature=0.1,
-                timeout=8.0,
+                timeout=5.0,
             )
             expansion = resp.choices[0].message.content.strip()
             return f"{query} {expansion}" if expansion else query
@@ -903,7 +903,7 @@ class RetrievalService:
                 "vector_score": item.get("vector_score", 0.0),
                 "keyword_score": item.get("keyword_score", 0.0),
             }
-            for item in candidates[:40]
+            for item in candidates[:20]
         ]
 
         prompt = {
@@ -928,6 +928,7 @@ class RetrievalService:
                     },
                     {"role": "user", "content": json.dumps(prompt)},
                 ],
+                timeout=5.0,
             )
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
