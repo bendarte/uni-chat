@@ -1554,14 +1554,16 @@ class ChatService:
             intent["is_exploratory"] = False
             intent["needs_clarification"] = False
 
-        # Single-word programme names or academic subjects should search directly without clarification.
+        # Programme names, academic subjects, and short queries with a detected domain should search directly.
         _stripped = message.strip().lower()
         _words = _stripped.split()
         _ACADEMIC_SUFFIXES = ("vetenskap", "ekonomi", "teknik", "teknologi", "logi", "ologi", "nomik", "kunskap")
-        if len(_words) == 1 and (
-            any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES)
-            or any(_stripped.endswith(s) for s in _ACADEMIC_SUFFIXES)
-            or intent.get("domain")  # single-word query with detected domain → search directly
+        if (
+            (len(_words) == 1 and (
+                any(_stripped.endswith(s) for s in self._PROGRAMME_SUFFIXES)
+                or any(_stripped.endswith(s) for s in _ACADEMIC_SUFFIXES)
+            ))
+            or (len(_words) <= 6 and intent.get("domain") and not intent.get("is_exploratory") and not intent.get("is_comparison_query"))
         ):
             intent["is_vague"] = False
             intent["is_exploratory"] = False
