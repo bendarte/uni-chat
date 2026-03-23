@@ -47,7 +47,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: uni_backend
     restart: unless-stopped
