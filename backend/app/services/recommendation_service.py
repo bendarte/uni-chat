@@ -280,11 +280,11 @@ class RecommendationService:
             recommendation = RecommendationItem(
                 program_id=program_id,
                 source_id=source_id,
-                program=explanation_payload.get("program", program.get("name", "")),
+                name=explanation_payload.get("program", program.get("name", "")),
                 university=explanation_payload.get("university", program.get("university", "")),
                 city=program.get("city"),
                 explanation=explanation_payload.get("explanation", []),
-                source=source_url,
+                source_url=source_url,
                 score=score,
             )
             items.append(recommendation)

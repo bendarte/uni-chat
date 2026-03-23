@@ -61,11 +61,11 @@ class ChatRequest(BaseModel):
 class RecommendationItem(BaseModel):
     program_id: Optional[str] = None
     source_id: Optional[str] = None
-    program: str
+    name: str
     university: str
     city: Optional[str] = None
     explanation: List[str]
-    source: str
+    source_url: str
     score: Optional[float] = None
 
 

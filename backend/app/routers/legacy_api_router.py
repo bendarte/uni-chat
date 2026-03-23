@@ -117,7 +117,7 @@ def chat_legacy(request: Request, payload: LegacyChatRequest) -> LegacyChatRespo
     recommendations: List[LegacyRecommendation] = []
     for index, rec in enumerate(chat_result.recommendations, start=1):
         deterministic_id = rec.program_id or str(
-            uuid.uuid5(uuid.NAMESPACE_DNS, f"{rec.program}|{rec.university}|{index}")
+            uuid.uuid5(uuid.NAMESPACE_DNS, f"{rec.name}|{rec.university}|{index}")
         )
         source_id = rec.source_id or f"ref-{index}"
         match_reason = " ".join(rec.explanation)
@@ -125,7 +125,7 @@ def chat_legacy(request: Request, payload: LegacyChatRequest) -> LegacyChatRespo
         recommendations.append(
             LegacyRecommendation(
                 program_id=deterministic_id,
-                title=rec.program,
+                title=rec.name,
                 university=rec.university,
                 match_reason=match_reason,
                 confidence=float(rec.score or 0.0),
