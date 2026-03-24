@@ -67,6 +67,15 @@ def detect_language(message: str) -> str:
 
 
 class ChatService:
+    EXPLICIT_GOAL_PATTERNS = (
+        r"\bjag vill bli\b",
+        r"\bjag vill jobba med\b",
+        r"\bjag vill arbeta med\b",
+        r"\bjag vill satsa på\b",
+        r"\bi want to be\b",
+        r"\bi want to become\b",
+        r"\bi want to work with\b",
+    )
     OPTION_STOPWORDS = {
         "och",
         "att",
@@ -120,6 +129,89 @@ class ChatService:
             seen.add(key)
             out.append(clean)
         return out
+
+    @classmethod
+    def _tokenize_focus_terms(cls, values: List[str]) -> List[str]:
+        tokens: List[str] = []
+        for value in values:
+            tokens.extend(re.findall(r"[a-zA-ZåäöÅÄÖ0-9\-_]+", str(value or "").lower()))
+        return [token for token in tokens if len(token) > 2]
+
+    @staticmethod
+    def _collect_domains(payload: Dict[str, Any]) -> List[str]:
+        return [
+            str(domain).strip().lower()
+            for domain in (
+                payload.get("domains")
+                or ([payload["domain"]] if payload.get("domain") else [])
+            )
+            if str(domain).strip()
+        ]
+
+    @staticmethod
+    def _collect_tracks(payload: Dict[str, Any]) -> List[str]:
+        return [
+            str(track).strip().lower()
+            for track in (payload.get("career_track_candidates") or payload.get("current_tracks") or [])
+            if str(track).strip()
+        ]
+
+    @classmethod
+    def _profile_focus_terms(cls, profile: Dict[str, Any]) -> List[str]:
+        option = profile.get("selected_guidance_option") or {}
+        values = [
+            *[str(item) for item in profile.get("interests", [])],
+            *[str(item) for item in profile.get("career_goals", [])],
+            *[str(item) for item in profile.get("current_domains", [])],
+            str(profile.get("current_domain") or ""),
+            *[str(item) for item in profile.get("current_tracks", [])],
+            str(option.get("label") or ""),
+            *[str(item) for item in option.get("domains", [])],
+            *[str(item) for item in option.get("tracks", [])],
+        ]
+        return cls._tokenize_focus_terms(values)
+
+    @classmethod
+    def _incoming_focus_terms(
+        cls,
+        extracted: Dict[str, Any],
+        intent: Dict[str, Any],
+    ) -> List[str]:
+        values = [
+            *[str(item) for item in extracted.get("interests", [])],
+            *[str(item) for item in extracted.get("career_goals", [])],
+            *[str(item) for item in intent.get("matched_role_terms", [])],
+            *[str(item) for item in cls._collect_domains(intent)],
+            *[str(item) for item in cls._collect_tracks(intent)],
+        ]
+        return cls._tokenize_focus_terms(values)
+
+    @classmethod
+    def _has_explicit_goal_phrase(cls, message: str) -> bool:
+        text = (message or "").strip().lower()
+        if not text:
+            return False
+        return any(re.search(pattern, text) for pattern in cls.EXPLICIT_GOAL_PATTERNS)
+
+    @classmethod
+    def _extract_explicit_goals(
+        cls,
+        message: str,
+        extracted: Dict[str, Any],
+        intent: Dict[str, Any],
+    ) -> List[str]:
+        if not cls._has_explicit_goal_phrase(message):
+            return []
+
+        goals = cls._dedupe_list(
+            [
+                *[str(item) for item in intent.get("matched_role_terms", [])],
+                *[str(item) for item in extracted.get("career_goals", [])],
+            ]
+        )
+        if goals:
+            return goals
+        return cls._dedupe_list([str(item) for item in extracted.get("interests", [])])
 
     def _merge_filters_first(
         self,
@@ -600,6 +692,14 @@ class ChatService:
         cleared["current_tracks"] = []
         return cleared
 
+    def _reset_subject_context(
+        self,
+        profile: Dict[str, Any],
+        filters: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        reset = self._hard_reset_context(profile)
+        return self._merge_filters_first(reset, filters)
+
     @staticmethod
     def _selected_option_domains(profile: Dict[str, Any]) -> List[str]:
         option = profile.get("selected_guidance_option") or {}
@@ -948,6 +1048,61 @@ class ChatService:
         if has_constraints and cls._has_explicit_university_constraint(extracted, filters):
             return True
         return False
+
+    @classmethod
+    def _should_reset_for_subject_switch(
+        cls,
+        profile: Dict[str, Any],
+        message: str,
+        extracted: Dict[str, Any],
+        intent: Dict[str, Any],
+    ) -> bool:
+        if not cls._has_topic_context(profile):
+            return False
+        if cls._looks_like_place_follow_up(message, extracted):
+            return False
+        if cls._contains_widen_scope_phrase(message):
+            return False
+
+        incoming_domains = set(cls._collect_domains(intent))
+        previous_domains = set(
+            [
+                *[str(item).strip().lower() for item in profile.get("current_domains", []) if str(item).strip()],
+                *cls._selected_option_domains(profile),
+            ]
+        )
+        current_domain = str(profile.get("current_domain") or "").strip().lower()
+        if current_domain:
+            previous_domains.add(current_domain)
+
+        if incoming_domains and previous_domains and not (incoming_domains & previous_domains):
+            return True
+
+        incoming_tracks = set(cls._collect_tracks(intent))
+        previous_tracks = {
+            str(track).strip().lower()
+            for track in profile.get("current_tracks", [])
+            if str(track).strip()
+        }
+        if incoming_tracks and previous_tracks and not (incoming_tracks & previous_tracks):
+            return True
+
+        incoming_terms = set(cls._incoming_focus_terms(extracted, intent))
+        previous_terms = set(cls._profile_focus_terms(profile))
+        if not incoming_terms or not previous_terms:
+            return False
+
+        if cls._has_explicit_goal_phrase(message):
+            return not bool(incoming_terms & previous_terms)
+
+        has_explicit_topic_signal = bool(
+            extracted.get("interests")
+            or extracted.get("career_goals")
+            or intent.get("matched_role_terms")
+            or incoming_domains
+            or incoming_tracks
+        )
+        return has_explicit_topic_signal and not bool(incoming_terms & previous_terms)
 
     def _build_listing_recommendations(
         self,
@@ -1589,16 +1744,8 @@ class ChatService:
 
         # Early domain-switch detection using unbiased probe intent — must run BEFORE
         # the biased intent analysis so profile is clean when intent is re-analyzed.
-        _probe_domains = set(
-            reset_probe_intent.get("domains")
-            or ([reset_probe_intent["domain"]] if reset_probe_intent.get("domain") else [])
-        )
-        _profile_domains = set(
-            profile.get("current_domains")
-            or ([profile["current_domain"]] if profile.get("current_domain") else [])
-        )
-        if _probe_domains and _profile_domains and not (_probe_domains & _profile_domains):
-            profile = self._reset_domain_context(profile)
+        if self._should_reset_for_subject_switch(profile, message, extracted, reset_probe_intent):
+            profile = self._reset_subject_context(profile, filters)
 
         if self._should_hard_reset_context(message, extracted, filters, reset_probe_intent):
             profile = self._hard_reset_context(profile)
@@ -1782,7 +1929,10 @@ class ChatService:
 
         # When the user mentions a specific role ("läkare", "sjuksköterska" etc.), add it to
         # career_goals so that the explanation service can reference it explicitly.
-        if intent.get("matched_role_terms") and not profile.get("career_goals"):
+        explicit_goals = self._extract_explicit_goals(message, extracted, intent)
+        if explicit_goals:
+            profile["career_goals"] = explicit_goals
+        elif intent.get("matched_role_terms") and not profile.get("career_goals"):
             profile["career_goals"] = self._dedupe_list(intent["matched_role_terms"])
 
         # persist session after every message

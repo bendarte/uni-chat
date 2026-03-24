@@ -56,3 +56,95 @@ def test_energy_queries_enrich_profile_with_environment_track():
     assert "energy systems" in enriched["interests"]
     assert "environment" in enriched["current_domains"]
     assert "energy_transition" in enriched["current_tracks"]
+
+
+def test_subject_switch_detection_resets_for_new_domain():
+    profile = {
+        "interests": ["music production"],
+        "career_goals": ["musician"],
+        "current_domain": "art",
+        "current_domains": ["art"],
+        "current_tracks": ["creative_production"],
+        "selected_guidance_option": {"label": "Kreativt & Media", "domains": ["art"]},
+    }
+    extracted = {
+        "interests": ["medicine"],
+        "career_goals": [],
+        "preferred_cities": ["Stockholm"],
+    }
+    intent = {
+        "domain": "healthcare",
+        "domains": ["healthcare"],
+        "career_track_candidates": ["patient_care"],
+        "matched_role_terms": ["läkare"],
+    }
+
+    assert ChatService._should_reset_for_subject_switch(
+        profile,
+        "Jag vill bli läkare i Stockholm",
+        extracted,
+        intent,
+    ) is True
+
+
+def test_subject_switch_detection_skips_place_follow_up():
+    profile = {
+        "interests": ["medicine"],
+        "career_goals": ["läkare"],
+        "current_domain": "healthcare",
+        "current_domains": ["healthcare"],
+        "current_tracks": ["patient_care"],
+        "selected_guidance_option": {"label": "Vård & Medicin", "domains": ["healthcare"]},
+    }
+    extracted = {
+        "interests": [],
+        "career_goals": [],
+        "preferred_cities": ["Stockholm"],
+        "preferred_universities": [],
+        "excluded_universities": [],
+    }
+    intent = {
+        "domain": None,
+        "domains": [],
+        "career_track_candidates": [],
+        "matched_role_terms": [],
+    }
+
+    assert ChatService._should_reset_for_subject_switch(
+        profile,
+        "och i Stockholm",
+        extracted,
+        intent,
+    ) is False
+
+
+def test_explicit_goal_replaces_old_goal_terms():
+    extracted = {
+        "interests": ["artificial intelligence"],
+        "career_goals": [],
+    }
+    intent = {"matched_role_terms": []}
+
+    goals = ChatService._extract_explicit_goals(
+        "Jag vill jobba med AI",
+        extracted,
+        intent,
+    )
+
+    assert goals == ["artificial intelligence"]
+
+
+def test_explicit_role_goal_prefers_role_terms():
+    extracted = {
+        "interests": ["medicine"],
+        "career_goals": [],
+    }
+    intent = {"matched_role_terms": ["läkare"]}
+
+    goals = ChatService._extract_explicit_goals(
+        "Jag vill bli läkare",
+        extracted,
+        intent,
+    )
+
+    assert goals == ["läkare"]
