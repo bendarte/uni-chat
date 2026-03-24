@@ -24,6 +24,12 @@ interface Message {
 }
 
 const SESSION_KEY = "uni-chat-session";
+const DEFAULT_FILTERS: Filters = {
+  level: "",
+  cities: [],
+  language: "",
+  study_pace: "",
+};
 const QUICK_PROMPTS = [
   "Jag vill bli läkare",
   "Civilingenjör i Stockholm",
@@ -31,27 +37,18 @@ const QUICK_PROMPTS = [
   "Ekonomiutbildning på engelska",
 ];
 
-function getSessionId(): string {
-  if (typeof window === "undefined") return "";
-  let sid = sessionStorage.getItem(SESSION_KEY);
-  if (!sid) {
-    sid = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    sessionStorage.setItem(SESSION_KEY, sid);
-  }
-  return sid;
+function createSessionId(): string {
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export default function Home() {
+  const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    level: "",
-    cities: [],
-    language: "",
-    study_pace: "",
-  });
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [programCount, setProgramCount] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -59,10 +56,67 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  useEffect(() => {
+    const nextSessionId = createSessionId();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.setItem(SESSION_KEY, nextSessionId);
+    }
+    setSessionId(nextSessionId);
+    setMessages([]);
+    setInput("");
+    setFilters({ ...DEFAULT_FILTERS, cities: [] });
+    setSidebarOpen(false);
+
+    async function loadProgramCountOnMount() {
+      try {
+        const res = await fetch("/api/system/status");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.programs === "number") {
+          setProgramCount(data.programs);
+        }
+      } catch {}
+    }
+
+    void loadProgramCountOnMount();
+  }, []);
+
+  function createFreshSession(): string {
+    const nextSessionId = createSessionId();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.setItem(SESSION_KEY, nextSessionId);
+    }
+    return nextSessionId;
+  }
+
+  function ensureSessionId(): string {
+    if (sessionId) {
+      return sessionId;
+    }
+    const nextSessionId = createFreshSession();
+    setSessionId(nextSessionId);
+    return nextSessionId;
+  }
+
+  function resetConversation(focusInput = true) {
+    const nextSessionId = createFreshSession();
+    setSessionId(nextSessionId);
+    setMessages([]);
+    setInput("");
+    setFilters({ ...DEFAULT_FILTERS, cities: [] });
+    setSidebarOpen(false);
+    if (focusInput) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
 
+    const currentSessionId = ensureSessionId();
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
@@ -79,7 +133,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          session_id: getSessionId(),
+          session_id: currentSessionId,
           filters: Object.keys(activeFilters).length ? activeFilters : undefined,
         }),
       });
@@ -119,6 +173,10 @@ export default function Home() {
     filters.language ||
     filters.study_pace ||
     filters.cities.length > 0;
+  const programCountLabel =
+    programCount === null
+      ? "Program laddas"
+      : `${programCount.toLocaleString("sv-SE")} program indexerade`;
   const activeFilterLabels = [
     filters.level ? `Nivå: ${filters.level}` : null,
     filters.language ? `Språk: ${filters.language}` : null,
@@ -149,7 +207,7 @@ export default function Home() {
 
           <div className="hidden items-center gap-2 lg:flex">
             <span className="rounded-full border border-[color:var(--line)] bg-white/70 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
-              277 program indexerade
+              {programCountLabel}
             </span>
             <span className="rounded-full border border-[color:var(--line)] bg-white/70 px-3 py-1 text-xs text-[color:var(--ink-soft)]">
               Live filter + multi-turn
@@ -268,10 +326,21 @@ export default function Home() {
                   </p>
                 </div>
                 <div
-                  className="rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--ink-soft)]"
-                  style={{ fontFamily: "var(--font-mono), monospace" }}
+                  className="flex flex-wrap items-center justify-end gap-2"
                 >
-                  {messages.length > 0 ? `${messages.length} meddelanden` : "Redo"}
+                  <button
+                    onClick={() => resetConversation()}
+                    className="rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-[color:var(--ink-soft)] transition hover:border-[color:var(--accent)] hover:text-[color:var(--accent-strong)]"
+                    style={{ fontFamily: "var(--font-mono), monospace" }}
+                  >
+                    Ny konversation
+                  </button>
+                  <div
+                    className="rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--ink-soft)]"
+                    style={{ fontFamily: "var(--font-mono), monospace" }}
+                  >
+                    {messages.length > 0 ? `${messages.length} meddelanden` : "Redo"}
+                  </div>
                 </div>
               </div>
             </div>
