@@ -1,8 +1,9 @@
+from collections import OrderedDict
 import json
 import logging
 import time
 from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Dict, MutableMapping, Optional
 
 import redis
 
@@ -10,6 +11,7 @@ from app.config import settings
 from app.logging_utils import log_event
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
+MAX_FALLBACK_ENTRIES = 10_000
 
 
 @lru_cache(maxsize=1)
@@ -26,7 +28,7 @@ def _get_redis_client() -> redis.Redis:
 
 class SessionService:
     def __init__(self) -> None:
-        self._fallback_store: Dict[str, Dict[str, Any]] = {}
+        self._fallback_store: MutableMapping[str, dict[str, Any]] = OrderedDict()
         self.logger = logging.getLogger("uvicorn.error")
         self.client = _get_redis_client()
 
@@ -53,6 +55,22 @@ class SessionService:
     @staticmethod
     def _key(conversation_id: str) -> str:
         return f"chat_profile:{conversation_id}"
+
+    @staticmethod
+    def _remember_fallback_entry(
+        store: MutableMapping[str, dict[str, Any]],
+        key: str,
+        entry: dict[str, Any],
+    ) -> None:
+        if key in store:
+            store.pop(key, None)
+        store[key] = entry
+        while len(store) > MAX_FALLBACK_ENTRIES:
+            if isinstance(store, OrderedDict):
+                store.popitem(last=False)
+            else:
+                oldest_key = next(iter(store))
+                store.pop(oldest_key, None)
 
     def load_profile(self, conversation_id: Optional[str]) -> Dict[str, Any]:
         if not conversation_id:
@@ -88,10 +106,14 @@ class SessionService:
             self.client.setex(key, SESSION_TTL_SECONDS, json.dumps(profile))
         except Exception as exc:
             log_event(self.logger, "warning", "redis_save_profile_failed", error=str(exc))
-            self._fallback_store[conversation_id] = {
-                "profile": profile,
-                "expires_at": time.time() + SESSION_TTL_SECONDS,
-            }
+            self._remember_fallback_entry(
+                self._fallback_store,
+                conversation_id,
+                {
+                    "profile": profile,
+                    "expires_at": time.time() + SESSION_TTL_SECONDS,
+                },
+            )
 
     def ping(self) -> bool:
         try:

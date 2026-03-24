@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import logging
 import secrets
 import threading
@@ -22,9 +23,18 @@ from app.routers.program_router import router as program_router
 from app.routers.system_router import router as system_router
 from app.services.chat_service import ChatService
 
-_rate_limit_fallback = {}
+MAX_RATE_LIMIT_FALLBACK_ENTRIES = 10_000
+_rate_limit_fallback = OrderedDict()
 _rate_limit_lock = threading.Lock()
 _redis_rate_limiter = None
+
+
+def _remember_rate_limit_entry(identifier: str, record: dict[str, float]) -> None:
+    if identifier in _rate_limit_fallback:
+        _rate_limit_fallback.pop(identifier, None)
+    _rate_limit_fallback[identifier] = record
+    while len(_rate_limit_fallback) > MAX_RATE_LIMIT_FALLBACK_ENTRIES:
+        _rate_limit_fallback.popitem(last=False)
 
 
 def _get_rate_limit_identifier(request: Request) -> str:
@@ -57,10 +67,14 @@ def _check_local_rate_limit(identifier: str) -> tuple[bool, int]:
     with _rate_limit_lock:
         record = _rate_limit_fallback.get(identifier)
         if not record or record["reset_at"] <= now:
-            _rate_limit_fallback[identifier] = {"count": 1, "reset_at": now + window}
+            _remember_rate_limit_entry(
+                identifier,
+                {"count": 1, "reset_at": now + window},
+            )
             return True, window
 
         record["count"] += 1
+        _remember_rate_limit_entry(identifier, record)
         retry_after = max(1, int(record["reset_at"] - now))
         allowed = record["count"] <= limit
         return allowed, retry_after

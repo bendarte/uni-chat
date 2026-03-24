@@ -8,6 +8,7 @@ import time
 
 import pytest
 
+from app.services import session_service as session_service_module
 from app.services.session_service import SESSION_TTL_SECONDS, SessionService, _get_redis_client
 
 
@@ -124,3 +125,16 @@ class TestSaveProfile:
         service.save_profile("sess-exp", {"interests": []})
         entry = service._fallback_store["sess-exp"]
         assert entry["expires_at"] > before + SESSION_TTL_SECONDS - 5
+
+    def test_fallback_store_evicts_oldest_entries_when_over_limit(self, svc, monkeypatch):
+        service, mock_redis = svc
+        mock_redis.setex.side_effect = Exception("redis down")
+        monkeypatch.setattr(session_service_module, "MAX_FALLBACK_ENTRIES", 2)
+
+        service.save_profile("sess-1", {"interests": ["one"]})
+        service.save_profile("sess-2", {"interests": ["two"]})
+        service.save_profile("sess-3", {"interests": ["three"]})
+
+        assert "sess-1" not in service._fallback_store
+        assert "sess-2" in service._fallback_store
+        assert "sess-3" in service._fallback_store
