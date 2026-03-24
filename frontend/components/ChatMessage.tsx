@@ -9,12 +9,20 @@ export default function ChatMessage({ role, content }: Props) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+        className={`max-w-[88%] rounded-[24px] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-[0_18px_45px_rgba(31,42,42,0.08)] ${
           isUser
-            ? "rounded-br-sm bg-indigo-600 text-white"
-            : "rounded-bl-sm bg-white text-gray-800 shadow-sm border border-gray-200"
+            ? "rounded-br-md bg-[var(--accent)] text-white"
+            : "rounded-bl-md border border-[color:var(--line)] bg-[color:var(--card-strong)] text-[color:var(--ink)]"
         }`}
       >
+        <div
+          className={`mb-1 text-[10px] uppercase tracking-[0.22em] ${
+            isUser ? "text-white/70" : "text-[color:var(--ink-soft)]"
+          }`}
+          style={{ fontFamily: "var(--font-mono), monospace" }}
+        >
+          {isUser ? "Du" : "UniChat"}
+        </div>
         {content}
       </div>
     </div>

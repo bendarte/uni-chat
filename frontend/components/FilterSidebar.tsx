@@ -57,17 +57,28 @@ export default function FilterSidebar({ filters, onChange }: Props) {
   }
 
   return (
-    <aside className="w-64 shrink-0 space-y-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-        Filter
-      </h2>
+    <aside className="w-full max-w-[19rem] shrink-0 space-y-6 rounded-[28px] border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
+      <div className="space-y-2">
+        <p
+          className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-soft)]"
+          style={{ fontFamily: "var(--font-mono), monospace" }}
+        >
+          Filter
+        </p>
+        <h2 className="text-lg font-semibold text-[color:var(--ink)]">
+          Förfina träffarna
+        </h2>
+        <p className="text-sm text-[color:var(--ink-soft)]">
+          Välj stad, nivå, språk och studietakt för att styra rekommendationerna.
+        </p>
+      </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">
+        <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--ink-soft)]">
           Nivå
         </label>
         <select
-          className="w-full rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm"
+          className="w-full rounded-2xl border border-[color:var(--line)] bg-white/80 px-3 py-2.5 text-sm text-[color:var(--ink)] outline-none transition focus:border-[color:var(--accent)]"
           value={filters.level}
           onChange={(e) => set("level", e.target.value)}
         >
@@ -80,11 +91,11 @@ export default function FilterSidebar({ filters, onChange }: Props) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">
+        <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--ink-soft)]">
           Språk
         </label>
         <select
-          className="w-full rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm"
+          className="w-full rounded-2xl border border-[color:var(--line)] bg-white/80 px-3 py-2.5 text-sm text-[color:var(--ink)] outline-none transition focus:border-[color:var(--accent)]"
           value={filters.language}
           onChange={(e) => set("language", e.target.value)}
         >
@@ -97,11 +108,11 @@ export default function FilterSidebar({ filters, onChange }: Props) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">
+        <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--ink-soft)]">
           Studietakt
         </label>
         <select
-          className="w-full rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm"
+          className="w-full rounded-2xl border border-[color:var(--line)] bg-white/80 px-3 py-2.5 text-sm text-[color:var(--ink)] outline-none transition focus:border-[color:var(--accent)]"
           value={filters.study_pace}
           onChange={(e) => set("study_pace", e.target.value)}
         >
@@ -115,18 +126,18 @@ export default function FilterSidebar({ filters, onChange }: Props) {
 
       {cities.length > 0 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">
+          <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--ink-soft)]">
             Stad
           </label>
-          <div className="max-h-48 space-y-1 overflow-y-auto">
+          <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
             {cities.map((city) => (
               <label
                 key={city}
-                className="flex cursor-pointer items-center gap-2 text-sm"
+                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent bg-white/70 px-3 py-2 text-sm text-[color:var(--ink)] transition hover:border-[color:var(--line)]"
               >
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300"
+                  className="rounded border-[color:var(--line)] text-[color:var(--accent)] focus:ring-[color:var(--accent)]"
                   checked={filters.cities.includes(city)}
                   onChange={() => toggleCity(city)}
                 />
@@ -145,7 +156,7 @@ export default function FilterSidebar({ filters, onChange }: Props) {
           onClick={() =>
             onChange({ level: "", cities: [], language: "", study_pace: "" })
           }
-          className="w-full rounded border border-gray-200 py-1 text-xs text-gray-500 hover:bg-gray-50"
+          className="w-full rounded-full border border-[color:var(--line)] bg-white/80 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--ink-soft)] transition hover:border-[color:var(--accent)] hover:text-[color:var(--accent-strong)]"
         >
           Rensa filter
         </button>

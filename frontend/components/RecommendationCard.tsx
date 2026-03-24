@@ -1,9 +1,3 @@
-interface Explanation {
-  bullets: string[];
-  source_id: string;
-  matched_fields: string[];
-}
-
 interface Recommendation {
   id?: string;
   name: string;
@@ -13,7 +7,7 @@ interface Recommendation {
   language: string;
   study_pace?: string;
   source_url?: string;
-  explanation?: Explanation;
+  explanation?: string[];
 }
 
 interface Props {
@@ -38,57 +32,69 @@ export default function RecommendationCard({ rec, index }: Props) {
   const lang = LANG_LABELS[rec.language] ?? rec.language;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <span className="mr-2 text-xs font-semibold text-indigo-500">
-            #{index + 1}
-          </span>
+    <article className="rounded-[28px] border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)] transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--accent)]/25">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 space-y-2">
+          <div
+            className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-soft)]"
+            style={{ fontFamily: "var(--font-mono), monospace" }}
+          >
+            Match #{index + 1}
+          </div>
           {rec.source_url ? (
             <a
               href={rec.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-gray-900 hover:text-indigo-600 hover:underline"
+              className="text-lg font-semibold text-[color:var(--ink)] transition hover:text-[color:var(--accent-strong)]"
             >
               {rec.name}
             </a>
           ) : (
-            <span className="font-semibold text-gray-900">{rec.name}</span>
+            <span className="text-lg font-semibold text-[color:var(--ink)]">
+              {rec.name}
+            </span>
           )}
+          <p className="text-sm text-[color:var(--ink-soft)]">
+            {rec.university} {rec.city ? `· ${rec.city}` : ""}
+          </p>
         </div>
+        {rec.source_url && (
+          <a
+            href={rec.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-1 text-xs font-medium text-[color:var(--accent-strong)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--accent-soft)]"
+          >
+            Öppna
+          </a>
+        )}
       </div>
 
-      <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-        <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">
-          {rec.university}
-        </span>
-        <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">
-          {rec.city}
-        </span>
-        <span className="rounded bg-indigo-50 px-2 py-0.5 text-indigo-700">
+      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full bg-[color:var(--accent-soft)] px-3 py-1 text-[color:var(--accent-strong)]">
           {level}
         </span>
-        <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">
+        <span className="rounded-full border border-[color:var(--line)] bg-white/75 px-3 py-1 text-[color:var(--ink-soft)]">
           {lang}
         </span>
         {rec.study_pace && (
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">
+          <span className="rounded-full border border-[color:var(--line)] bg-white/75 px-3 py-1 text-[color:var(--ink-soft)]">
             {rec.study_pace}%
           </span>
         )}
       </div>
 
-      {rec.explanation?.bullets && rec.explanation.bullets.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs text-gray-600">
-          {rec.explanation.bullets.map((b, i) => (
-            <li key={i} className="flex gap-1.5">
-              <span className="mt-0.5 text-indigo-400">•</span>
-              <span>{b}</span>
+      {rec.explanation && rec.explanation.length > 0 && (
+        <ul className="mt-4 space-y-2 text-sm text-[color:var(--ink-soft)]">
+          {rec.explanation.map((bullet, itemIndex) => (
+            <li key={itemIndex} className="flex gap-2.5">
+              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[color:var(--warm)]" />
+              <span>{bullet}</span>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </article>
   );
 }

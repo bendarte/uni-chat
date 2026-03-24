@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --surface: #f5f1e8;
+  --surface-strong: #fffaf0;
+  --surface-muted: rgba(255, 250, 240, 0.7);
+  --card: rgba(255, 252, 246, 0.86);
+  --card-strong: #fffdf8;
+  --line: rgba(74, 52, 31, 0.14);
+  --ink: #1d2a2a;
+  --ink-soft: #536266;
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-soft: #c8f1ea;
+  --warm: #dd8d31;
+  --shadow: 0 24px 70px rgba(50, 42, 33, 0.12);
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 36%),
+    radial-gradient(circle at bottom right, rgba(221, 141, 49, 0.18), transparent 28%),
+    linear-gradient(180deg, #f7f3ea 0%, #f3ecdf 100%);
+}
+
+body {
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--font-display), sans-serif;
+}
+
+::selection {
+  background: rgba(15, 118, 110, 0.18);
+}
