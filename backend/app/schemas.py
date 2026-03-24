@@ -9,6 +9,17 @@ class HealthResponse(BaseModel):
     status: str
 
 
+class DependencyStatus(BaseModel):
+    ok: bool
+    detail: Optional[str] = None
+
+
+class ReadinessResponse(BaseModel):
+    status: str
+    ready: bool
+    dependencies: Dict[str, DependencyStatus]
+
+
 class Program(BaseModel):
     name: str
     university: str

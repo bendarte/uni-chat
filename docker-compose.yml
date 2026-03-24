@@ -52,7 +52,7 @@ services:
     container_name: uni_backend
     restart: unless-stopped
     env_file:
-      - .env
+      - backend/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +63,7 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request, sys; r=urllib.request.urlopen('http://localhost:8000/health', timeout=5); sys.exit(0 if r.status==200 else 1)"]
+      test: ["CMD", "python3", "-c", "import urllib.request, urllib.error, sys; req=urllib.request.Request('http://localhost:8000/ready'); r=urllib.request.urlopen(req, timeout=5); sys.exit(0 if r.status==200 else 1)"]
       interval: 20s
       timeout: 10s
       retries: 3
