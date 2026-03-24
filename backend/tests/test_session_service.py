@@ -9,7 +9,12 @@ import time
 import pytest
 
 from app.services import session_service as session_service_module
-from app.services.session_service import SESSION_TTL_SECONDS, SessionService, _get_redis_client
+from app.services.session_service import (
+    SESSION_TTL_SECONDS,
+    SessionService,
+    _get_redis_client,
+    _shared_fallback_store,
+)
 
 
 @pytest.fixture
@@ -18,8 +23,10 @@ def svc(mocker):
     mock_redis = mocker.MagicMock()
     mocker.patch("app.services.session_service.redis.Redis.from_url", return_value=mock_redis)
     _get_redis_client.cache_clear()
+    _shared_fallback_store.clear()
     service = SessionService()
     yield service, mock_redis
+    _shared_fallback_store.clear()
     _get_redis_client.cache_clear()
 
 
@@ -61,6 +68,23 @@ class TestDefaultProfile:
         assert second.client is mock_redis
         constructor.assert_called_once()
 
+    def test_reuses_shared_fallback_store_across_instances(self, mocker):
+        mock_redis = mocker.MagicMock()
+        mocker.patch(
+            "app.services.session_service.redis.Redis.from_url",
+            return_value=mock_redis,
+        )
+        _get_redis_client.cache_clear()
+        _shared_fallback_store.clear()
+        try:
+            first = SessionService()
+            second = SessionService()
+        finally:
+            _get_redis_client.cache_clear()
+            _shared_fallback_store.clear()
+
+        assert first._fallback_store is second._fallback_store
+
 
 class TestLoadProfile:
     def test_returns_default_when_no_conversation_id(self, svc):
@@ -91,6 +115,29 @@ class TestLoadProfile:
         mock_redis.get.side_effect = Exception("redis down")
         profile = service.load_profile("sess-xyz")
         assert profile == SessionService.default_profile()
+
+    def test_loads_shared_fallback_data_saved_by_other_instance(self, mocker):
+        first_redis = mocker.MagicMock()
+        second_redis = mocker.MagicMock()
+        first_redis.setex.side_effect = Exception("redis down")
+        second_redis.get.side_effect = Exception("redis down")
+        mocker.patch(
+            "app.services.session_service.redis.Redis.from_url",
+            side_effect=[first_redis, second_redis],
+        )
+        _get_redis_client.cache_clear()
+        _shared_fallback_store.clear()
+        try:
+            first = SessionService()
+            _get_redis_client.cache_clear()
+            second = SessionService()
+            first.save_profile("sess-shared", {"language": "english"})
+            profile = second.load_profile("sess-shared")
+        finally:
+            _get_redis_client.cache_clear()
+            _shared_fallback_store.clear()
+
+        assert profile["language"] == "english"
 
 
 class TestSaveProfile:

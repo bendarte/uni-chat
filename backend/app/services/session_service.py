@@ -12,6 +12,7 @@ from app.logging_utils import log_event
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 MAX_FALLBACK_ENTRIES = 10_000
+_shared_fallback_store: MutableMapping[str, dict[str, Any]] = OrderedDict()
 
 
 @lru_cache(maxsize=1)
@@ -28,7 +29,7 @@ def _get_redis_client() -> redis.Redis:
 
 class SessionService:
     def __init__(self) -> None:
-        self._fallback_store: MutableMapping[str, dict[str, Any]] = OrderedDict()
+        self._fallback_store = _shared_fallback_store
         self.logger = logging.getLogger("uvicorn.error")
         self.client = _get_redis_client()
 
