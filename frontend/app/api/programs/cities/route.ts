@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
-const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
+import { backendHeaders, backendUrl } from "@/lib/backend";
 
 export async function GET() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/programs/cities`, {
-      headers: { "X-API-Key": BACKEND_API_KEY },
+    const res = await fetch(backendUrl("/programs/cities"), {
+      headers: backendHeaders(),
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(5_000),
     });
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const cities = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.cities)
+      ? data.cities
+      : [];
+    return NextResponse.json({ cities }, { status: res.status });
   } catch (err) {
     console.error("cities proxy error:", err);
     return NextResponse.json({ cities: [] }, { status: 503 });

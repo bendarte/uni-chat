@@ -1,6 +1,4 @@
-from collections import Counter, defaultdict
-from typing import Dict, List
-from urllib.parse import urlparse
+from typing import Dict
 
 from fastapi import APIRouter
 from sqlalchemy import func
@@ -42,48 +40,3 @@ def system_status() -> Dict[str, object]:
         "programs": programs,
         "source_pages": source_pages,
     }
-
-
-@router.get("/sources/stats")
-def source_stats() -> List[Dict[str, object]]:
-    grouped = defaultdict(
-        lambda: {
-            "domain": "",
-            "name_counts": Counter(),
-            "page_urls": set(),
-            "program_count": 0,
-            "last_updated": None,
-        }
-    )
-
-    with SessionLocal() as db:
-        rows = (
-            db.query(Program.university, Program.source_url, Program.last_updated)
-            .filter(Program.source_url.isnot(None), Program.source_url != "")
-            .all()
-        )
-
-    for row in rows:
-        domain = urlparse(row.source_url).netloc.lower()
-        bucket = grouped[domain]
-        bucket["domain"] = domain
-        bucket["name_counts"][row.university or "Unknown"] += 1
-        bucket["page_urls"].add(row.source_url)
-        bucket["program_count"] += 1
-        if row.last_updated and (bucket["last_updated"] is None or row.last_updated > bucket["last_updated"]):
-            bucket["last_updated"] = row.last_updated
-
-    payload = []
-    for bucket in grouped.values():
-        payload.append(
-            {
-                "domain": bucket["domain"],
-                "university": bucket["name_counts"].most_common(1)[0][0] if bucket["name_counts"] else "Unknown",
-                "page_count": len(bucket["page_urls"]),
-                "program_count": bucket["program_count"],
-                "last_updated": bucket["last_updated"].isoformat() if bucket["last_updated"] else None,
-            }
-        )
-
-    payload.sort(key=lambda item: (-int(item["program_count"]), str(item["university"])))
-    return payload

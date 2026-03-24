@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
-const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
+import { backendHeaders, backendUrl } from "@/lib/backend";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const res = await fetch(`${BACKEND_URL}/chat`, {
+    const res = await fetch(backendUrl("/chat"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": BACKEND_API_KEY,
-      },
+      headers: backendHeaders(true),
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(60_000),
     });
