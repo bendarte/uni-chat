@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from app.services.session_service import SESSION_TTL_SECONDS, SessionService
+from app.services.session_service import SESSION_TTL_SECONDS, SessionService, _get_redis_client
 
 
 @pytest.fixture
@@ -16,8 +16,10 @@ def svc(mocker):
     """SessionService with a mocked Redis client."""
     mock_redis = mocker.MagicMock()
     mocker.patch("app.services.session_service.redis.Redis.from_url", return_value=mock_redis)
+    _get_redis_client.cache_clear()
     service = SessionService()
-    return service, mock_redis
+    yield service, mock_redis
+    _get_redis_client.cache_clear()
 
 
 class TestDefaultProfile:
@@ -40,6 +42,23 @@ class TestDefaultProfile:
         profile = SessionService.default_profile()
         assert profile["language"] is None
         assert profile["current_domain"] is None
+
+    def test_reuses_shared_redis_client_across_instances(self, mocker):
+        mock_redis = mocker.MagicMock()
+        constructor = mocker.patch(
+            "app.services.session_service.redis.Redis.from_url",
+            return_value=mock_redis,
+        )
+        _get_redis_client.cache_clear()
+        try:
+            first = SessionService()
+            second = SessionService()
+        finally:
+            _get_redis_client.cache_clear()
+
+        assert first.client is mock_redis
+        assert second.client is mock_redis
+        constructor.assert_called_once()
 
 
 class TestLoadProfile:

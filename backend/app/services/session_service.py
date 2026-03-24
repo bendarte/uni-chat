@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from functools import lru_cache
 from typing import Any, Dict, Optional
 
 import redis
@@ -11,18 +12,23 @@ from app.logging_utils import log_event
 SESSION_TTL_SECONDS = 24 * 60 * 60
 
 
+@lru_cache(maxsize=1)
+def _get_redis_client() -> redis.Redis:
+    return redis.Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+        health_check_interval=30,
+        retry_on_timeout=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+    )
+
+
 class SessionService:
     def __init__(self) -> None:
         self._fallback_store: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger("uvicorn.error")
-        self.client = redis.Redis.from_url(
-            settings.redis_url,
-            decode_responses=True,
-            health_check_interval=30,
-            retry_on_timeout=True,
-            socket_connect_timeout=2,
-            socket_timeout=2,
-        )
+        self.client = _get_redis_client()
 
     @staticmethod
     def default_profile() -> Dict[str, Any]:
