@@ -11,6 +11,7 @@ class Settings:
     app_name: str = field(default_factory=lambda: os.getenv("APP_NAME", "University Recommendation Backend"))
     app_env: str = field(default_factory=lambda: os.getenv("APP_ENV", "development"))
     backend_api_key: str = field(default_factory=lambda: os.getenv("BACKEND_API_KEY", ""))
+    admin_api_key: str = field(default_factory=lambda: os.getenv("ADMIN_API_KEY", ""))
     rate_limit_enabled: bool = field(
         default_factory=lambda: os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
     )
@@ -41,6 +42,8 @@ class Settings:
     def __post_init__(self) -> None:
         if self.app_env.lower() == "production" and not self.backend_api_key.strip():
             raise RuntimeError("BACKEND_API_KEY måste vara satt när APP_ENV=production")
+        if self.app_env.lower() == "production" and not self.admin_api_key.strip():
+            raise RuntimeError("ADMIN_API_KEY måste vara satt när APP_ENV=production")
 
 
 settings = Settings()

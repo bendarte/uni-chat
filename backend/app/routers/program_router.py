@@ -1,9 +1,11 @@
+import secrets
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.models import Program
 from app.schemas import IngestResponse, ProgramCreate, ProgramResponse
@@ -11,6 +13,16 @@ from app.services.source_validation import normalize_source_url
 from scripts.ingest_all import ingest_all as run_ingestion_pipeline
 
 router = APIRouter(tags=["programs"])
+
+
+def require_admin_api_key(request: Request) -> None:
+    expected_api_key = settings.admin_api_key.strip()
+    if not expected_api_key:
+        raise HTTPException(status_code=503, detail="Admin API key not configured")
+
+    provided_api_key = request.headers.get("X-Admin-API-Key", "").strip()
+    if not provided_api_key or not secrets.compare_digest(provided_api_key, expected_api_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @router.get("/programs", response_model=List[ProgramResponse])
@@ -33,7 +45,7 @@ def list_program_cities(db: Session = Depends(get_db)) -> List[str]:
     return [str(row[0]) for row in rows if row and str(row[0]).strip()]
 
 
-@router.post("/programs", response_model=ProgramResponse)
+@router.post("/programs", response_model=ProgramResponse, dependencies=[Depends(require_admin_api_key)])
 def create_program(
     payload: ProgramCreate, db: Session = Depends(get_db)
 ) -> ProgramResponse:
@@ -46,7 +58,7 @@ def create_program(
     return program
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(require_admin_api_key)])
 def ingest_programs() -> IngestResponse:
     result = run_ingestion_pipeline()
     return IngestResponse(status="ok", **result)
