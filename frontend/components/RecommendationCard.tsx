@@ -1,14 +1,4 @@
-interface Recommendation {
-  id?: string;
-  name: string;
-  university: string;
-  city: string;
-  level: string;
-  language: string;
-  study_pace?: string;
-  source_url?: string;
-  explanation?: string[];
-}
+import type { Recommendation } from "@/lib/types";
 
 interface Props {
   rec: Recommendation;

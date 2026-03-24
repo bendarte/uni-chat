@@ -2,20 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import ChatMessage from "@/components/ChatMessage";
-import FilterSidebar, { Filters } from "@/components/FilterSidebar";
+import FilterSidebar from "@/components/FilterSidebar";
 import RecommendationCard from "@/components/RecommendationCard";
-
-interface Recommendation {
-  id?: string;
-  name: string;
-  university: string;
-  city: string;
-  level: string;
-  language: string;
-  study_pace?: string;
-  source_url?: string;
-  explanation?: string[];
-}
+import type {
+  ActiveFiltersResponse,
+  Filters,
+  Recommendation,
+} from "@/lib/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -36,6 +29,76 @@ const QUICK_PROMPTS = [
   "Master i datavetenskap",
   "Ekonomiutbildning på engelska",
 ];
+
+const LEVEL_LABELS: Record<string, string> = {
+  bachelor: "Kandidat",
+  master: "Master",
+  vocational: "Yrkesexamen",
+};
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  swedish: "Svenska",
+  english: "Engelska",
+};
+
+const STUDY_PACE_LABELS: Record<string, string> = {
+  "full-time": "Heltid",
+  "part-time": "Deltid",
+};
+
+function normalizeLevel(value: unknown): string {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "master") return "master";
+  if (normalized === "bachelor" || normalized === "kandidat") return "bachelor";
+  if (normalized === "vocational" || normalized === "yrkesexamen") return "vocational";
+  return "";
+}
+
+function normalizeLanguage(value: unknown): string {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "english" || normalized === "engelska") return "english";
+  if (normalized === "swedish" || normalized === "svenska") return "swedish";
+  return "";
+}
+
+function normalizeStudyPace(value: unknown): string {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (
+    normalized === "full-time" ||
+    normalized === "full time" ||
+    normalized === "heltid" ||
+    normalized === "100" ||
+    normalized === "100%"
+  ) {
+    return "full-time";
+  }
+  if (
+    normalized === "part-time" ||
+    normalized === "part time" ||
+    normalized === "deltid" ||
+    normalized === "50" ||
+    normalized === "50%" ||
+    normalized === "75" ||
+    normalized === "75%" ||
+    normalized === "25" ||
+    normalized === "25%"
+  ) {
+    return "part-time";
+  }
+  return "";
+}
+
+function mapActiveFiltersToSidebarFilters(
+  activeFilters?: ActiveFiltersResponse | null
+): Filters {
+  const city = String(activeFilters?.city ?? "").trim();
+  return {
+    level: normalizeLevel(activeFilters?.level),
+    cities: city ? [city] : [],
+    language: normalizeLanguage(activeFilters?.language),
+    study_pace: normalizeStudyPace(activeFilters?.study_pace),
+  };
+}
 
 function createSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -142,6 +205,9 @@ export default function Home() {
       const answer: string =
         data.answer ?? data.error ?? "Något gick fel. Försök igen.";
       const recs: Recommendation[] = data.recommendations ?? [];
+      if ("active_filters" in data) {
+        setFilters(mapActiveFiltersToSidebarFilters(data.active_filters));
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -178,9 +244,13 @@ export default function Home() {
       ? "Program laddas"
       : `${programCount.toLocaleString("sv-SE")} program indexerade`;
   const activeFilterLabels = [
-    filters.level ? `Nivå: ${filters.level}` : null,
-    filters.language ? `Språk: ${filters.language}` : null,
-    filters.study_pace ? `Takt: ${filters.study_pace}%` : null,
+    filters.level ? `Nivå: ${LEVEL_LABELS[filters.level] ?? filters.level}` : null,
+    filters.language
+      ? `Språk: ${LANGUAGE_LABELS[filters.language] ?? filters.language}`
+      : null,
+    filters.study_pace
+      ? `Takt: ${STUDY_PACE_LABELS[filters.study_pace] ?? filters.study_pace}`
+      : null,
     filters.cities.length ? `Städer: ${filters.cities.join(", ")}` : null,
   ].filter((label): label is string => Boolean(label));
 

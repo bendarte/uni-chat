@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-export interface Filters {
-  level: string;
-  cities: string[];
-  language: string;
-  study_pace: string;
-}
+import type { Filters } from "@/lib/types";
 
 interface Props {
   filters: Filters;
@@ -29,10 +23,8 @@ const LANGUAGES = [
 
 const STUDY_PACES = [
   { value: "", label: "Alla" },
-  { value: "100", label: "Heltid (100%)" },
-  { value: "75", label: "75%" },
-  { value: "50", label: "Halvfart (50%)" },
-  { value: "25", label: "25%" },
+  { value: "full-time", label: "Heltid (100%)" },
+  { value: "part-time", label: "Deltid (<100%)" },
 ];
 
 export default function FilterSidebar({ filters, onChange }: Props) {

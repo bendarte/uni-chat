@@ -572,9 +572,9 @@ class ChatService:
         city = cities[0] if isinstance(cities, list) and cities else ""
         return {
             "city": city,
-            "level": str(effective.get("level") or "").capitalize(),
-            "language": str(effective.get("language") or "").capitalize(),
-            "study_pace": str(effective.get("study_pace") or "").replace("-", " ").capitalize(),
+            "level": str(effective.get("level") or "").strip().lower(),
+            "language": normalize_language(effective.get("language")) or "",
+            "study_pace": normalize_study_pace(effective.get("study_pace")) or "",
         }
 
     @classmethod
