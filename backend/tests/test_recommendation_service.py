@@ -159,6 +159,16 @@ class TestTopicGuardrails:
         # business domain → tech-topic guardrail skipped → falls through to alignment check
         assert RecommendationService._passes_topic_guardrails(profile, program, alignment=0.15)
 
+    def test_specific_topics_require_specific_overlap(self):
+        profile = make_profile(interests=["psychology"])
+        program = make_program(name="Occupational Therapy", field="Health Sciences", description="")
+        assert not RecommendationService._passes_topic_guardrails(profile, program, alignment=0.5)
+
+    def test_specific_topic_overlap_passes_even_with_generic_domain_overlap(self):
+        profile = make_profile(interests=["design", "engineering"])
+        program = make_program(name="Interaction Design", field="Design", description="UX and user experience")
+        assert RecommendationService._passes_topic_guardrails(profile, program, alignment=0.05)
+
 
 # ---------------------------------------------------------------------------
 # _looks_like_course

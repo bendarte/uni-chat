@@ -13,6 +13,9 @@ class TestNormalizeSourceUrl:
     def test_strips_whitespace(self):
         assert normalize_source_url("  https://example.com  ") == "https://example.com"
 
+    def test_upgrades_http_to_https(self):
+        assert normalize_source_url("http://example.com/program") == "https://example.com/program"
+
     def test_none_returns_empty(self):
         assert normalize_source_url(None) == ""
 

@@ -69,6 +69,19 @@ TOPIC_ALIASES = {
         "teknologi",
         "technical",
     },
+    "energy systems": {
+        "energy",
+        "energi",
+        "energy systems",
+        "energisystem",
+        "renewable energy",
+        "förnybar energi",
+        "hallbar energi",
+        "hållbar energi",
+        "sustainable energy",
+        "energy transition",
+        "energiomställning",
+    },
     "business": {
         "business",
         "management",
@@ -118,6 +131,30 @@ TOPIC_ALIASES = {
         "care",
         "healthcare",
     },
+    "psychology": {
+        "psychology",
+        "psykologi",
+        "psychological",
+        "psykolog",
+        "behaviour",
+        "behavior",
+        "beteende",
+        "mental health",
+        "mental",
+    },
+    "design": {
+        "design",
+        "ux",
+        "ui",
+        "user experience",
+        "interaction design",
+        "interaktionsdesign",
+        "digital product design",
+        "product design",
+        "visual design",
+        "graphic design",
+        "grafisk design",
+    },
 }
 
 TOPIC_SYNONYMS = {
@@ -162,6 +199,14 @@ TOPIC_SYNONYMS = {
         "ingenjör",
         "technical systems",
     ],
+    "energy systems": [
+        "energy systems",
+        "energy",
+        "renewable energy",
+        "sustainable energy",
+        "sustainability",
+        "engineering",
+    ],
     "business": [
         "business",
         "economics",
@@ -191,6 +236,19 @@ TOPIC_SYNONYMS = {
         "health",
         "medicine",
         "public health",
+    ],
+    "psychology": [
+        "psychology",
+        "mental health",
+        "behavioral science",
+        "social sciences",
+    ],
+    "design": [
+        "design",
+        "ux",
+        "interaction design",
+        "digital product design",
+        "visual design",
     ],
 }
 
@@ -237,9 +295,18 @@ def infer_topics_from_text(*texts: str) -> List[str]:
         if token.startswith("ingenj") and "engineering" not in seen:
             seen.add("engineering")
             found.append("engineering")
+        if (token.startswith("energi") or token == "energy") and "energy systems" not in seen:
+            seen.add("energy systems")
+            found.append("energy systems")
         if token.startswith("hist") and "history" not in seen:
             seen.add("history")
             found.append("history")
+        if token.startswith("psykolog") and "psychology" not in seen:
+            seen.add("psychology")
+            found.append("psychology")
+        if token in {"design", "ux", "ui"} and "design" not in seen:
+            seen.add("design")
+            found.append("design")
 
     return found
 

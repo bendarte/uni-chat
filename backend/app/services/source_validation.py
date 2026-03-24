@@ -1,5 +1,5 @@
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 DISALLOWED_HOST_SUBSTRINGS = {
     "facebook.com",
@@ -14,7 +14,15 @@ DISALLOWED_HOST_SUBSTRINGS = {
 def normalize_source_url(url: Optional[str]) -> str:
     if not url:
         return ""
-    return url.strip()
+    cleaned = url.strip()
+    try:
+        parsed = urlparse(cleaned)
+    except Exception:
+        return cleaned
+
+    if parsed.scheme == "http" and parsed.netloc:
+        return urlunparse(parsed._replace(scheme="https"))
+    return cleaned
 
 
 def is_valid_source_url(url: Optional[str]) -> bool:

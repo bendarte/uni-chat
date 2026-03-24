@@ -13,6 +13,7 @@ from qdrant_client.models import (
 )
 
 from app.config import settings
+from app.logging_utils import log_event
 
 PROGRAMS_COLLECTION_NAME = "programs_active"
 PROGRAMS_COLLECTION_PREFIX = "programs"
@@ -102,4 +103,10 @@ def delete_program_collection(collection_name: str) -> None:
     try:
         client.delete_collection(collection_name=collection_name)
     except Exception as exc:
-        logging.getLogger(__name__).warning("Failed to delete collection '%s': %s", collection_name, exc)
+        log_event(
+            logging.getLogger(__name__),
+            "warning",
+            "qdrant_delete_collection_failed",
+            collection_name=collection_name,
+            error=str(exc),
+        )

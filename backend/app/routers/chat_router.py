@@ -3,6 +3,7 @@ import time
 
 from fastapi import APIRouter, Request
 
+from app.logging_utils import log_event
 from app.schemas import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
 
@@ -21,12 +22,15 @@ def chat(request: Request, payload: ChatRequest) -> ChatResponse:
         filters=filters,
         conversation_id=conversation_id,
     )
+    response.request_id = getattr(request.state, "request_id", response.request_id)
     query_latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
-    logger.info(
-        "chat_audit session_id=%s query_latency_ms=%s recommendation_count=%s question_count=%s",
-        conversation_id or "-",
-        query_latency_ms,
-        len(response.recommendations),
-        len(response.questions),
+    log_event(
+        logger,
+        "info",
+        "chat_request_completed",
+        session_id=conversation_id or "-",
+        query_latency_ms=query_latency_ms,
+        recommendation_count=len(response.recommendations),
+        question_count=len(response.questions),
     )
     return response

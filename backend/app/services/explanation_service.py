@@ -10,6 +10,7 @@ class ExplanationService:
         "product_management": "Det här ligger nära spåret produktledning i teknikbolag med fokus på affär, digital utveckling och förändring.",
         "health_tech": "Det här ligger nära spåret health tech där vård möter teknik och digital utveckling.",
         "digital_media_communication": "Det här ligger nära spåret digital media och kommunikation där innehåll möter teknik.",
+        "energy_transition": "Det här ligger nära spåret energi, hållbarhet och omställning som du verkar vara ute efter.",
     }
 
     @staticmethod
@@ -170,6 +171,16 @@ class ExplanationService:
         for track in current_tracks:
             if track in program_tracks and track in cls.TRACK_EXPLANATIONS:
                 return cls.TRACK_EXPLANATIONS[track]
+            if track == "energy_transition":
+                focus_text = " ".join(
+                    [
+                        str(program.get("name") or ""),
+                        str(program.get("field") or ""),
+                        str(program.get("description") or ""),
+                    ]
+                ).lower()
+                if any(marker in focus_text for marker in ["energy", "energi", "sustainable", "hållbar", "environment", "miljö"]):
+                    return cls.TRACK_EXPLANATIONS[track]
         return ""
 
     @classmethod

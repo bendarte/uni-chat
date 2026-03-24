@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import redis
 
 from app.config import settings
+from app.logging_utils import log_event
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 
@@ -61,7 +62,7 @@ class SessionService:
             merged.update(profile)
             return merged
         except Exception as exc:
-            self.logger.warning("Redis unavailable when loading profile: %s", exc)
+            log_event(self.logger, "warning", "redis_load_profile_failed", error=str(exc))
             fallback = self._fallback_store.get(conversation_id)
             if not fallback:
                 return self.default_profile()
@@ -80,7 +81,7 @@ class SessionService:
         try:
             self.client.setex(key, SESSION_TTL_SECONDS, json.dumps(profile))
         except Exception as exc:
-            self.logger.warning("Redis unavailable when saving profile: %s", exc)
+            log_event(self.logger, "warning", "redis_save_profile_failed", error=str(exc))
             self._fallback_store[conversation_id] = {
                 "profile": profile,
                 "expires_at": time.time() + SESSION_TTL_SECONDS,

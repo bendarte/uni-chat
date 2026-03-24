@@ -6,6 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.logging_utils import log_event
 from app.services.chat_service import ChatService
 
 router = APIRouter(tags=["legacy-api"])
@@ -95,7 +96,7 @@ def chat_legacy(request: Request, payload: LegacyChatRequest) -> LegacyChatRespo
         conversation_id=payload.session_id,
     )
 
-    request_id = str(uuid.uuid4())
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
 
     if chat_result.questions:
         answer = "Jag behöver lite mer information:\n- " + "\n- ".join(chat_result.questions)
@@ -106,11 +107,15 @@ def chat_legacy(request: Request, payload: LegacyChatRequest) -> LegacyChatRespo
             request_id=request_id,
             blocked=False,
         )
-        logger.info(
-            "chat_audit session_id=%s query_latency_ms=%s recommendation_count=0 question_count=%s route=legacy",
-            payload.session_id or "-",
-            round((time.perf_counter() - started_at) * 1000, 2),
-            len(chat_result.questions),
+        log_event(
+            logger,
+            "info",
+            "legacy_chat_request_completed",
+            session_id=payload.session_id or "-",
+            query_latency_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            recommendation_count=0,
+            question_count=len(chat_result.questions),
+            route="legacy",
         )
         return response
 
@@ -146,10 +151,14 @@ def chat_legacy(request: Request, payload: LegacyChatRequest) -> LegacyChatRespo
         request_id=request_id,
         blocked=False,
     )
-    logger.info(
-        "chat_audit session_id=%s query_latency_ms=%s recommendation_count=%s question_count=0 route=legacy",
-        payload.session_id or "-",
-        round((time.perf_counter() - started_at) * 1000, 2),
-        len(recommendations),
+    log_event(
+        logger,
+        "info",
+        "legacy_chat_request_completed",
+        session_id=payload.session_id or "-",
+        query_latency_ms=round((time.perf_counter() - started_at) * 1000, 2),
+        recommendation_count=len(recommendations),
+        question_count=0,
+        route="legacy",
     )
     return response

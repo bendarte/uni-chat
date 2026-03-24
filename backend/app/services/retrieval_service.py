@@ -9,6 +9,7 @@ from sqlalchemy import and_, func, or_
 
 from app.config import settings
 from app.db import SessionLocal
+from app.logging_utils import log_event
 from app.models import Program
 from app.qdrant_client import PROGRAMS_COLLECTION_NAME, ensure_program_collection, get_qdrant_client
 from app.services.guidance_tagging import annotate_guidance_item
@@ -99,10 +100,14 @@ class RetrievalService:
         if not self.client:
             raise ValueError("OPENAI_API_KEY is required for embeddings")
 
-        response = self.client.embeddings.create(
-            model=settings.openai_embedding_model,
-            input=text,
-        )
+        try:
+            response = self.client.embeddings.create(
+                model=settings.openai_embedding_model,
+                input=text,
+            )
+        except Exception as exc:
+            log_event(self.logger, "warning", "openai_embedding_failed", error=str(exc))
+            raise
         return response.data[0].embedding
 
     @staticmethod
@@ -290,7 +295,7 @@ class RetrievalService:
             expansion = resp.choices[0].message.content.strip()
             return f"{query} {expansion}" if expansion else query
         except Exception as exc:
-            self.logger.warning("LLM query expansion failed, using original query: %s", exc)
+            log_event(self.logger, "warning", "openai_query_expansion_failed", error=str(exc))
             return query
 
     @staticmethod
@@ -607,10 +612,14 @@ class RetrievalService:
         if not self._has_strict_filters(filters):
             return None
 
-        with SessionLocal() as db:
-            query_obj = db.query(Program.id).filter(and_(Program.source_url.isnot(None), Program.source_url != ""))
-            query_obj = self._apply_sql_filters(query_obj, filters)
-            rows = query_obj.limit(limit).all()
+        try:
+            with SessionLocal() as db:
+                query_obj = db.query(Program.id).filter(and_(Program.source_url.isnot(None), Program.source_url != ""))
+                query_obj = self._apply_sql_filters(query_obj, filters)
+                rows = query_obj.limit(limit).all()
+        except Exception as exc:
+            log_event(self.logger, "warning", "postgres_filter_query_failed", error=str(exc))
+            return []
         return [str(row.id) for row in rows]
 
     @staticmethod
@@ -653,14 +662,21 @@ class RetrievalService:
 
         llm_query = self._llm_expand_query(query)
         expanded_query = self._build_expanded_query(query=llm_query, profile=profile)
-        query_vector = self.create_embedding(expanded_query)
-        results = self.qdrant.search(
-            collection_name=PROGRAMS_COLLECTION_NAME,
-            query_vector=query_vector,
-            query_filter=self._build_qdrant_filter(filters, allowed_ids),
-            limit=limit,
-            with_payload=True,
-        )
+        try:
+            query_vector = self.create_embedding(expanded_query)
+        except Exception:
+            return []
+        try:
+            results = self.qdrant.search(
+                collection_name=PROGRAMS_COLLECTION_NAME,
+                query_vector=query_vector,
+                query_filter=self._build_qdrant_filter(filters, allowed_ids),
+                limit=limit,
+                with_payload=True,
+            )
+        except Exception as exc:
+            log_event(self.logger, "warning", "qdrant_vector_search_failed", error=str(exc))
+            return []
 
         candidates: List[Dict[str, Any]] = []
         for point in results:
@@ -704,34 +720,38 @@ class RetrievalService:
         terms = self._extract_keyword_terms(query)
         candidates: List[Dict[str, Any]] = []
 
-        with SessionLocal() as db:
-            query_obj = db.query(Program).filter(and_(Program.source_url.isnot(None), Program.source_url != ""))
-            query_obj = self._apply_sql_filters(query_obj, filters)
+        try:
+            with SessionLocal() as db:
+                query_obj = db.query(Program).filter(and_(Program.source_url.isnot(None), Program.source_url != ""))
+                query_obj = self._apply_sql_filters(query_obj, filters)
 
-            if allowed_ids:
-                query_obj = query_obj.filter(
-                    Program.id.in_([uuid.UUID(program_id) for program_id in allowed_ids])
-                )
-
-            if terms:
-                term_conditions = []
-                for term in terms:
-                    like = f"%{term}%"
-                    term_conditions.append(
-                        or_(
-                            Program.name.ilike(like),
-                            Program.description.ilike(like),
-                            Program.career_paths.ilike(like),
-                            Program.field.ilike(like),
-                            Program.university.ilike(like),
-                        )
+                if allowed_ids:
+                    query_obj = query_obj.filter(
+                        Program.id.in_([uuid.UUID(program_id) for program_id in allowed_ids])
                     )
-                query_obj = query_obj.filter(or_(*term_conditions))
 
-            rows = query_obj.limit(limit).all()
+                if terms:
+                    term_conditions = []
+                    for term in terms:
+                        like = f"%{term}%"
+                        term_conditions.append(
+                            or_(
+                                Program.name.ilike(like),
+                                Program.description.ilike(like),
+                                Program.career_paths.ilike(like),
+                                Program.field.ilike(like),
+                                Program.university.ilike(like),
+                            )
+                        )
+                    query_obj = query_obj.filter(or_(*term_conditions))
 
-            if not rows and not terms:
-                rows = query_obj.order_by(Program.last_updated.desc()).limit(limit).all()
+                rows = query_obj.limit(limit).all()
+
+                if not rows and not terms:
+                    rows = query_obj.order_by(Program.last_updated.desc()).limit(limit).all()
+        except Exception as exc:
+            log_event(self.logger, "warning", "postgres_keyword_query_failed", error=str(exc))
+            return []
 
         query_terms = terms
         for row in rows:
@@ -820,8 +840,12 @@ class RetrievalService:
         if not id_map:
             return items
 
-        with SessionLocal() as db:
-            rows = db.query(Program).filter(Program.id.in_(list(id_map.keys()))).all()
+        try:
+            with SessionLocal() as db:
+                rows = db.query(Program).filter(Program.id.in_(list(id_map.keys()))).all()
+        except Exception as exc:
+            log_event(self.logger, "warning", "postgres_hydration_query_failed", error=str(exc))
+            return items
 
         row_map = {str(row.id): row for row in rows}
         hydrated = []
@@ -942,7 +966,7 @@ class RetrievalService:
                 if "program_id" in item and "score" in item
             }
         except Exception as exc:
-            self.logger.warning("LLM reranking fallback triggered: %s", exc)
+            log_event(self.logger, "warning", "openai_rerank_failed", error=str(exc))
             score_map = {}
 
         for item in candidates:

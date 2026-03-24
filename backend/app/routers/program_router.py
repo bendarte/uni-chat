@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Program
 from app.schemas import IngestResponse, ProgramCreate, ProgramResponse
+from app.services.source_validation import normalize_source_url
 from scripts.ingest_all import ingest_all as run_ingestion_pipeline
 
 router = APIRouter(tags=["programs"])
@@ -14,7 +15,10 @@ router = APIRouter(tags=["programs"])
 
 @router.get("/programs", response_model=List[ProgramResponse])
 def list_programs(db: Session = Depends(get_db)) -> List[ProgramResponse]:
-    return db.query(Program).order_by(Program.last_updated.desc()).all()
+    programs = db.query(Program).order_by(Program.last_updated.desc()).all()
+    for program in programs:
+        program.source_url = normalize_source_url(program.source_url)
+    return programs
 
 
 @router.get("/programs/cities", response_model=List[str])
@@ -33,7 +37,9 @@ def list_program_cities(db: Session = Depends(get_db)) -> List[str]:
 def create_program(
     payload: ProgramCreate, db: Session = Depends(get_db)
 ) -> ProgramResponse:
-    program = Program(**payload.model_dump())
+    data = payload.model_dump()
+    data["source_url"] = normalize_source_url(data.get("source_url"))
+    program = Program(**data)
     db.add(program)
     db.commit()
     db.refresh(program)

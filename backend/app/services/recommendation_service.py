@@ -24,6 +24,14 @@ _MAX_RESULTS = 5
 
 
 class RecommendationService:
+    GENERIC_TOPICS = {
+        "engineering",
+        "business",
+        "health sciences",
+        "social sciences",
+        "computer science",
+    }
+
     def __init__(self) -> None:
         self.explainer = ExplanationService()
 
@@ -77,6 +85,15 @@ class RecommendationService:
             return True
 
         program_topics = cls._program_topics(program)
+        specific_profile_topics = profile_topics - cls.GENERIC_TOPICS
+        if specific_profile_topics:
+            if specific_profile_topics & program_topics:
+                return True
+            current_domain = str(user_profile.get("current_domain") or "").strip().lower()
+            if current_domain == "business":
+                return alignment >= 0.12
+            return False
+
         if profile_topics & program_topics:
             return True
 

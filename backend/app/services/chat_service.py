@@ -390,6 +390,8 @@ class ChatService:
         # Tracks or domain set → subject area already known, don't ask for interests.
         if profile.get("current_tracks") or profile.get("current_domain"):
             return []
+        if profile.get("preferred_cities") or profile.get("study_level") or profile.get("language") or profile.get("study_pace"):
+            return []
 
         stripped = (message or "").strip().lower()
         words = stripped.split()
@@ -471,6 +473,50 @@ class ChatService:
             "study_pace": request_filters.get("study_pace") or profile.get("study_pace"),
             "_city_locked": city_locked,
         }
+
+    @staticmethod
+    def _build_active_filters(profile: Dict[str, Any], request_filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        effective = ChatService._build_effective_filters(profile, request_filters)
+        cities = effective.get("cities") or []
+        city = cities[0] if isinstance(cities, list) and cities else ""
+        return {
+            "city": city,
+            "level": str(effective.get("level") or "").capitalize(),
+            "language": str(effective.get("language") or "").capitalize(),
+            "study_pace": str(effective.get("study_pace") or "").replace("-", " ").capitalize(),
+        }
+
+    @classmethod
+    def _enrich_energy_context(cls, profile: Dict[str, Any], message: str) -> Dict[str, Any]:
+        text = (message or "").strip().lower()
+        if not text:
+            return profile
+
+        has_energy_signal = any(token in text for token in ["energi", "energy"])
+        has_sustainability_signal = any(
+            token in text for token in ["hållbar", "hallbar", "sustainable", "renewable", "förnybar"]
+        )
+        if not has_energy_signal:
+            return profile
+
+        enriched = dict(profile)
+        enriched["interests"] = cls._dedupe_list([*enriched.get("interests", []), "energy systems"])
+        enriched["current_domains"] = cls._dedupe_list(
+            [
+                *enriched.get("current_domains", []),
+                *(["tech"] if enriched.get("current_domain") == "tech" else []),
+                *(["environment"] if has_sustainability_signal or enriched.get("current_domain") == "environment" else []),
+            ]
+        )
+        if not enriched.get("current_domain"):
+            enriched["current_domain"] = "environment" if has_sustainability_signal else "tech"
+        enriched["current_tracks"] = cls._dedupe_list(
+            [
+                *enriched.get("current_tracks", []),
+                "energy_transition",
+            ]
+        )
+        return enriched
 
     @staticmethod
     def _reset_domain_context(profile: Dict[str, Any]) -> Dict[str, Any]:
@@ -857,12 +903,7 @@ class ChatService:
             questions=[],
             recommendations=[],
             citations=[],
-            active_filters={
-                "city": reset_profile.get("preferred_cities", [""])[0] if reset_profile.get("preferred_cities") else "",
-                "level": (reset_profile.get("study_level") or "").capitalize(),
-                "language": (reset_profile.get("language") or "").capitalize(),
-                "study_pace": (reset_profile.get("study_pace") or "").replace("-", " ").capitalize(),
-            },
+            active_filters=self._build_active_filters(reset_profile),
         )
 
     @staticmethod
@@ -1737,6 +1778,8 @@ class ChatService:
         elif intent.get("domain"):
             profile["current_tracks"] = []
 
+        profile = self._enrich_energy_context(profile, message)
+
         # When the user mentions a specific role ("läkare", "sjuksköterska" etc.), add it to
         # career_goals so that the explanation service can reference it explicitly.
         if intent.get("matched_role_terms") and not profile.get("career_goals"):
@@ -1767,12 +1810,7 @@ class ChatService:
                 questions=self._humanize_questions(intent.get(fup_key, intent.get("follow_up_questions", []))[:3], lang=lang),
                 recommendations=[],
                 citations=[],
-                active_filters={
-                    "city": profile.get("preferred_cities")[0] if profile.get("preferred_cities") else "",
-                    "level": (profile.get("study_level") or "").capitalize(),
-                    "language": (profile.get("language") or "").capitalize(),
-                    "study_pace": (profile.get("study_pace") or "").replace("-", " ").capitalize(),
-                },
+                active_filters=self._build_active_filters(profile, filters),
             )
 
         # 6) follow-up questions only if strictly needed
@@ -1785,7 +1823,13 @@ class ChatService:
                 if lang == "en"
                 else "Jag behöver lite mer information innan jag kan rekommendera program."
             )
-            return ChatResponse(answer=answer, questions=self._humanize_questions(questions, lang=lang), recommendations=[], citations=[])
+            return ChatResponse(
+                answer=answer,
+                questions=self._humanize_questions(questions, lang=lang),
+                recommendations=[],
+                citations=[],
+                active_filters=self._build_active_filters(profile, filters),
+            )
 
         # 7) log final merged profile before retrieval
         self.logger.info("Final merged profile before retrieval: %s", profile)
@@ -1836,8 +1880,12 @@ class ChatService:
             widened_filters = dict(effective_filters)
             widened_filters["cities"] = []
             widened_filters["_city_locked"] = False
+            widened_query = self._build_retrieval_query(
+                message.strip() or "study program recommendations",
+                widened_profile,
+            )
             widened_programs = self.retrieval.search_programs(
-                query=retrieval_query,
+                query=widened_query,
                 filters=widened_filters,
                 profile=widened_profile,
             )
@@ -1857,8 +1905,12 @@ class ChatService:
             level_widened_profile["study_level"] = None
             level_widened_filters = dict(effective_filters)
             level_widened_filters["level"] = None
+            level_widened_query = self._build_retrieval_query(
+                message.strip() or "study program recommendations",
+                level_widened_profile,
+            )
             level_widened_programs = self.retrieval.search_programs(
-                query=retrieval_query,
+                query=level_widened_query,
                 filters=level_widened_filters,
                 profile=level_widened_profile,
             )
@@ -1876,8 +1928,12 @@ class ChatService:
             lang_widened_profile["language"] = None
             lang_widened_filters = dict(effective_filters)
             lang_widened_filters["language"] = None
+            lang_widened_query = self._build_retrieval_query(
+                message.strip() or "study program recommendations",
+                lang_widened_profile,
+            )
             lang_widened_programs = self.retrieval.search_programs(
-                query=retrieval_query,
+                query=lang_widened_query,
                 filters=lang_widened_filters,
                 profile=lang_widened_profile,
             )
@@ -1894,8 +1950,12 @@ class ChatService:
             pace_widened_profile["study_pace"] = None
             pace_widened_filters = dict(effective_filters)
             pace_widened_filters["study_pace"] = None
+            pace_widened_query = self._build_retrieval_query(
+                message.strip() or "study program recommendations",
+                pace_widened_profile,
+            )
             pace_widened_programs = self.retrieval.search_programs(
-                query=retrieval_query,
+                query=pace_widened_query,
                 filters=pace_widened_filters,
                 profile=pace_widened_profile,
             )
@@ -1905,12 +1965,35 @@ class ChatService:
                 citation_programs = pace_widened_programs
                 widened_from_pace = str(effective_filters["study_pace"])
 
-        active_filters = {
-            "city": profile.get("preferred_cities")[0] if profile.get("preferred_cities") else "",
-            "level": (profile.get("study_level") or "").capitalize(),
-            "language": (profile.get("language") or "").capitalize(),
-            "study_pace": (profile.get("study_pace") or "").replace("-", " ").capitalize(),
-        }
+        widened_globally = False
+        if not recommendations and not intent.get("is_listing_query") and profile.get("interests"):
+            broad_profile = dict(profile)
+            broad_profile["preferred_cities"] = []
+            broad_profile["study_level"] = None
+            broad_profile["language"] = None
+            broad_profile["study_pace"] = None
+            broad_filters = {
+                "cities": [],
+                "universities": effective_filters.get("universities") or [],
+                "exclude_universities": effective_filters.get("exclude_universities") or [],
+                "level": None,
+                "language": None,
+                "study_pace": None,
+                "_city_locked": False,
+            }
+            broad_query = self._build_scope_widen_query(broad_profile)
+            broad_programs = self.retrieval.search_programs(
+                query=broad_query,
+                filters=broad_filters,
+                profile=broad_profile,
+            )
+            broad_recs = self.recommender.generate(broad_profile, broad_programs, limit=5)
+            if broad_recs:
+                recommendations = broad_recs
+                citation_programs = broad_programs
+                widened_globally = True
+
+        active_filters = self._build_active_filters(profile, filters)
 
         if recommendations:
             lead = recommendations[0]
@@ -1980,6 +2063,19 @@ class ChatService:
                     answer = (
                         f"Inga program på {pace_label} hittades för din fråga — "
                         f"här är de bästa matchningarna oavsett studietakt i stället. "
+                        f"Toppmatch är {lead.name} vid {lead.university}."
+                    )
+            elif widened_globally:
+                if lang == "en":
+                    answer = (
+                        f"I couldn't find a clear match with all your current constraints, "
+                        f"so here are the strongest matches from across Sweden instead. "
+                        f"Top match is {lead.name} at {lead.university}."
+                    )
+                else:
+                    answer = (
+                        f"Jag hittade ingen tydlig träff med alla nuvarande begränsningar, "
+                        f"så här är de starkaste matchningarna från hela Sverige i stället. "
                         f"Toppmatch är {lead.name} vid {lead.university}."
                     )
             elif intent.get("is_listing_query") and active_filters.get("city"):
