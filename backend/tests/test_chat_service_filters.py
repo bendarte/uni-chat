@@ -118,6 +118,50 @@ def test_subject_switch_detection_skips_place_follow_up():
     ) is False
 
 
+def test_reset_subject_context_preserves_existing_filters_without_sidebar_input():
+    service = ChatService.__new__(ChatService)
+    profile = {
+        "interests": ["music production"],
+        "career_goals": ["musician"],
+        "preferred_cities": ["Stockholm"],
+        "preferred_country": ["Sweden"],
+        "preferred_universities": ["KTH"],
+        "excluded_universities": ["SU"],
+        "language": "english",
+        "study_level": "master",
+        "study_pace": "full-time",
+        "locked_fields": ["preferred_cities", "study_level"],
+        "current_domain": "art",
+        "current_domains": ["art"],
+        "current_tracks": ["creative_production"],
+        "clarification_stage": "awaiting_domain_specific_choice",
+        "current_question_type": "option_choice",
+        "clarification_options": [{"label": "Kreativt & Media"}],
+        "selected_guidance_option": {"label": "Kreativt & Media", "domains": ["art"]},
+    }
+
+    reset = service._reset_subject_context(profile, filters=None)
+
+    assert reset["interests"] == []
+    assert reset["career_goals"] == []
+    assert reset["current_domain"] is None
+    assert reset["current_domains"] == []
+    assert reset["current_tracks"] == []
+    assert reset["clarification_stage"] is None
+    assert reset["current_question_type"] is None
+    assert reset["clarification_options"] == []
+    assert reset["selected_guidance_option"] is None
+
+    assert reset["preferred_cities"] == ["Stockholm"]
+    assert reset["preferred_country"] == ["Sweden"]
+    assert reset["preferred_universities"] == ["KTH"]
+    assert reset["excluded_universities"] == ["SU"]
+    assert reset["language"] == "english"
+    assert reset["study_level"] == "master"
+    assert reset["study_pace"] == "full-time"
+    assert reset["locked_fields"] == ["preferred_cities", "study_level"]
+
+
 def test_explicit_goal_replaces_old_goal_terms():
     extracted = {
         "interests": ["artificial intelligence"],

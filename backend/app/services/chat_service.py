@@ -510,8 +510,7 @@ class ChatService:
         _STOP_WORDS = frozenset({"på", "i", "och", "med", "för", "om"})
         _content_words = [w for w in words if w not in _STOP_WORDS]
         # Also treat duration adjectives (NNårig) as filter words via pattern.
-        import re as _re
-        if _content_words and all(w in _FILTER_WORDS or bool(_re.fullmatch(r'\d+årig', w)) for w in _content_words):
+        if _content_words and all(w in _FILTER_WORDS or bool(re.fullmatch(r"\d+årig", w)) for w in _content_words):
             return []
         if len(words) <= 2:
             return ["interests"]
@@ -697,7 +696,7 @@ class ChatService:
         profile: Dict[str, Any],
         filters: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        reset = self._hard_reset_context(profile)
+        reset = self._reset_domain_context(profile)
         return self._merge_filters_first(reset, filters)
 
     @staticmethod
