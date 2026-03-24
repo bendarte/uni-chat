@@ -1,5 +1,16 @@
 # Audit
 
+## Nuläge 2026-03-24
+
+- [x] Stadsfiltret fungerar via ett normaliserat frontend-kontrakt
+- [x] `admin/sources` och dess route är borttagna ur deployen
+- [x] `/health` är liveness och `/ready` verifierar Postgres, Redis och Qdrant
+- [x] Auto-ingestion är borttagen från startup och ersatt med separat bootstrap-script
+- [x] Backend kräver API-nyckel för all trafik utom liveness/readiness och vägrar starta utan `BACKEND_API_KEY` i produktion
+- [x] Strukturerad loggning med request-id finns för requests samt Redis/Qdrant/OpenAI/readiness-fel
+- [x] Deployunderlag för Railway/Vercel och `.env.example` finns
+- [ ] Slutlig deploy- och browserverifiering återstår innan release kan markeras helt grön
+
 ## Kartläggning 2026-03-19
 
 ### Kritiskt (kraschar/startar inte)
@@ -103,13 +114,13 @@ Fullständigt scenarietest mot live-backend efter alla fixar. 91/91 ✓.
 
 | Krav | Beskrivning | Status |
 |------|-------------|--------|
-| K1 | LLM tolkar fritext → semantisk sökning (ingen nyckelordslista) | ✅ |
+| K1 | LLM query expansion + keyword-taxonomy som komplement | ✅ |
 | K2 | Sidobar-filter (stad, nivå, språk, takt) fungerar individuellt och kombinerat | ✅ |
 | K3 | "jag vill bli lärare" + filter → returnerar lärarutbildningar | ✅ |
 | K4 | Specifik fråga → direkt rekommendation; vag → max 1-2 klarningsfrågor | ✅ |
 | K5 | Förklara VARFÖR program matchar; aldrig irrelevanta program | ✅ |
 | K6 | Svenska default, engelska om användaren skriver engelska | ✅ |
-| K7 | Inga dubbletter; datafällan dokumenterad | ✅ |
+| K7 | 280 program — räcker för demo, behöver utökas | ✅ |
 | K8 | OpenAI nere → fallback; Qdrant/Postgres nere → klart felmeddelande | ✅ |
 
 ### Fixar i denna omgång
@@ -168,13 +179,13 @@ Fullständigt scenarietest mot live-backend efter alla fixar. 91/91 ✓.
 ### Automatiserad verifiering
 
 - `pytest backend/tests/` → **133/133 passed**
-- K1 (LLM fritext): `jag vill bli lärare` → 5 lärarutbildningar ✅
+- K1 (LLM query expansion + keyword-taxonomy): `jag vill bli lärare` → 5 lärarutbildningar ✅
 - K2 (sidebar filter): `teknik` + `level=master&language=english` → 5 recs ✅; auto-widening returnerar program + meddelande när 0 lokala träffar ✅
 - K3 (fritext+filter): `jag vill bli sjuksköterska` + `cities=[Göteborg]` → 2 recs ✅
 - K4 (direkt vs vag): programnamn/yrke → direkt rec ✅; "jag vet inte vad jag vill" → klarningsfråga ✅
 - K5 (förklaring): svar innehåller motivering per program ✅
 - K6 (språk): engelska fråga → engelska svar ✅; svenska fråga → svenska svar ✅
-- K7 (inga dubbletter): 280 unika program, ingen Qdrant-orphan ✅
+- K7 (280 program — räcker för demo, behöver utökas): 280 unika program, ingen Qdrant-orphan ✅
 - K8 (fallback): `client=None` → statistisk scoring returnerar korrekt ✅; Postgres/Qdrant nere → tydligt felmeddelande ✅
 
 ## Omgång 3 — Test och bugfixar 2026-03-23
