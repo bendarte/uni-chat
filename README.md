@@ -1,6 +1,6 @@
 # UniChat
 
-UniChat is an AI-powered study advisor for Swedish higher education programs. Users can describe a goal, subject, city, or set of constraints in natural language and get ranked programme recommendations with grounded explanations.
+UniChat is an AI-powered study advisor for Swedish higher education built around a retrieval-augmented generation pipeline. Users can describe a goal, subject, city, or set of constraints in natural language and get ranked programme recommendations with grounded explanations.
 
 Live demo: `https://uni-chat-mu.vercel.app`
 
@@ -27,6 +27,19 @@ UniChat combines a Next.js frontend with a FastAPI backend.
 
 The backend uses a retrieval pipeline where programme data is crawled, normalized, stored in PostgreSQL, indexed as embeddings in Qdrant, and then retrieved through a context-enriched query built from both the current user message and prior session state.
 
+## RAG Pipeline
+
+UniChat is not just a chat wrapper around an LLM. It combines semantic retrieval, structured filtering, and deterministic ranking logic.
+
+1. Programme data is crawled from source pages and normalized into a canonical dataset.
+2. Records are stored in PostgreSQL and embedded with OpenAI embeddings.
+3. Embeddings and metadata are indexed in Qdrant for semantic retrieval.
+4. Each user message is enriched with multi-turn session context, extracted constraints, and active sidebar filters.
+5. Relevant programmes are retrieved through vector search and narrowed by hard constraints such as city, university, language, study pace, and exclusions.
+6. Guardrails, deduplication, and reranking logic shape the final shortlist before explanations are generated from retrieved programme metadata.
+
+This makes the system closer to a constrained recommendation engine with RAG than a generic chatbot.
+
 ## Key Features
 
 - RAG-based programme retrieval for Swedish university search
@@ -35,6 +48,15 @@ The backend uses a retrieval pipeline where programme data is crawled, normalize
 - recommendation reranking, deduplication, and constraint handling
 - normalized city and university labels across ingestion, retrieval, and UI
 - production deployment on Vercel and Railway
+
+## Technical Highlights
+
+- context-aware retrieval built from both the latest prompt and prior session state
+- hybrid recommendation flow combining vector search, metadata filtering, and deterministic guardrails
+- canonical data normalization across ingestion, storage, retrieval, and presentation
+- production backfill and re-index workflows for PostgreSQL and Qdrant
+- admin-protected operational routes for ingestion and index republishing
+- end-to-end deployment with production verification on Railway and Vercel
 
 ## Local Development
 
