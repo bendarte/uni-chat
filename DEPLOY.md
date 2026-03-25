@@ -249,40 +249,67 @@ curl https://DIN-BACKEND-DOMÄN/health
 curl https://DIN-BACKEND-DOMÄN/ready
 ```
 
-8. Kör lokala regressionskommandon mot den deployade backenden om du har åtkomst:
+8. Kör verifieringsscriptet direkt efter varje deploy i staging eller produktion:
 
 ```bash
 cd backend
-BACKEND_BASE_URL=https://DIN-BACKEND-DOMÄN BACKEND_API_KEY=... .venv/bin/python scripts/verify_chat.py
+BACKEND_BASE_URL="$BACKEND_BASE_URL" \
+BACKEND_API_KEY="$BACKEND_API_KEY" \
+.venv/bin/python scripts/verify_chat.py
 ```
+
+Miljövariablerna ska redan finnas i din shell eller i deploymiljön. Kör inte med hårdkodade nycklar i kommandot.
+
+Fail-kriterier — rulla tillbaka om något av detta inträffar:
+
+- `/health` eller `/ready` svarar inte `200` inom 10 sekunder
+- `verify_chat.py` returnerar exit code `!= 0`
+- en känd fungerande fråga returnerar `0` rekommendationer, till exempel `Jag vill bli läkare helst i Stockholm`
+
+## Rebuild vid lokala ändringar
+
+När du testar lokalt med Docker efter kodändringar:
+
+```bash
+docker compose up -d --build
+```
+
+Utan `--build` är det lätt att verifiera gamla images.
 
 ## Rollback
 
-Om senaste releasen är trasig:
+Om verifieringen ovan misslyckas:
 
 ### Backend
 
-1. Öppna Railway.
-2. Gå till tidigare lyckad deployment.
-3. Redeploya den versionen.
-4. Verifiera `/health` och `/ready`.
+1. Railway dashboard:
+   gå till backend-tjänsten → `Deployments` → välj senaste gröna deployen → `Rollback`.
+2. Om ni använder CLI och kommandot finns i er Railway-version:
+
+```bash
+railway service rollback --service backend
+```
 
 ### Frontend
 
-1. Öppna Vercel.
-2. Välj senaste fungerande deploymenten.
-3. Promote eller redeploya den versionen.
+1. Vercel dashboard:
+   gå till projektet → `Deployments` → välj senaste gröna deployen → `Promote to Production`.
 
 ### Efter rollback
 
-Kör alltid:
+Verifiera alltid igen:
 
 ```bash
 curl https://DIN-BACKEND-DOMÄN/health
 curl https://DIN-BACKEND-DOMÄN/ready
+
+cd backend
+BACKEND_BASE_URL="$BACKEND_BASE_URL" \
+BACKEND_API_KEY="$BACKEND_API_KEY" \
+.venv/bin/python scripts/verify_chat.py
 ```
 
-Och testa minst ett helt användarflöde i webbläsaren.
+Felsök först och deploya igen efter att incidenten är under kontroll. Rulla inte framåt under en aktiv incident.
 
 ## Checklista före release
 
