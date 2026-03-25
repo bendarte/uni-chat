@@ -11,6 +11,7 @@ from app.models import Program
 from app.schemas import IngestResponse, ProgramCreate, ProgramResponse
 from app.services.metadata_normalization import display_city, is_country_name, normalize_university
 from app.services.source_validation import normalize_source_url
+from scripts.backfill_university_labels import apply_backfill, republish_qdrant_from_db
 from scripts.ingest_all import ingest_all as run_ingestion_pipeline
 
 router = APIRouter(tags=["programs"])
@@ -80,3 +81,18 @@ def create_program(
 def ingest_programs() -> IngestResponse:
     result = run_ingestion_pipeline()
     return IngestResponse(status="ok", **result)
+
+
+@router.post("/republish", dependencies=[Depends(require_admin_api_key)])
+def republish_program_index() -> dict[str, object]:
+    applied = apply_backfill(include_university=True, include_city=True)
+    qdrant = republish_qdrant_from_db(applied["programs"])
+    return {
+        "status": "ok",
+        "checked": applied["checked"],
+        "updated": applied["updated"],
+        "embedded_in_qdrant": qdrant["embedded_rows"],
+        "published": qdrant["published"],
+        "previous_collection": qdrant["previous_collection"],
+        "target_collection": qdrant["target_collection"],
+    }

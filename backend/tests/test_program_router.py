@@ -72,6 +72,60 @@ def test_post_ingest_allows_valid_admin_key(mocker, monkeypatch):
     ingest.assert_called_once()
 
 
+def test_post_republish_requires_admin_key(mocker, monkeypatch):
+    monkeypatch.setattr(
+        program_router,
+        "settings",
+        SimpleNamespace(admin_api_key="admin-secret", app_env="development"),
+    )
+    apply_backfill = mocker.patch("app.routers.program_router.apply_backfill")
+    republish = mocker.patch("app.routers.program_router.republish_qdrant_from_db")
+    client = create_test_client(mocker.MagicMock())
+
+    response = client.post("/republish")
+
+    assert response.status_code == 401
+    apply_backfill.assert_not_called()
+    republish.assert_not_called()
+
+
+def test_post_republish_allows_valid_admin_key(mocker, monkeypatch):
+    monkeypatch.setattr(
+        program_router,
+        "settings",
+        SimpleNamespace(admin_api_key="admin-secret", app_env="development"),
+    )
+    apply_backfill = mocker.patch(
+        "app.routers.program_router.apply_backfill",
+        return_value={"checked": 3560, "updated": 0, "programs": [{"id": "1"}]},
+    )
+    republish = mocker.patch(
+        "app.routers.program_router.republish_qdrant_from_db",
+        return_value={
+            "embedded_rows": 3560,
+            "published": True,
+            "previous_collection": "programs_old",
+            "target_collection": "programs_new",
+        },
+    )
+    client = create_test_client(mocker.MagicMock())
+
+    response = client.post("/republish", headers={"X-Admin-API-Key": "admin-secret"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "checked": 3560,
+        "updated": 0,
+        "embedded_in_qdrant": 3560,
+        "published": True,
+        "previous_collection": "programs_old",
+        "target_collection": "programs_new",
+    }
+    apply_backfill.assert_called_once_with(include_university=True, include_city=True)
+    republish.assert_called_once_with([{"id": "1"}])
+
+
 def test_post_program_normalizes_university_aliases(mocker, monkeypatch):
     monkeypatch.setattr(
         program_router,
