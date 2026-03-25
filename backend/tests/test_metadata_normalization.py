@@ -5,6 +5,8 @@ retrieval pipeline."""
 import pytest
 
 from app.services.metadata_normalization import (
+    display_city,
+    is_country_name,
     normalize_city,
     normalize_language,
     normalize_study_pace,
@@ -38,6 +40,16 @@ class TestNormalizeCity:
     def test_linkoping_alias(self):
         result = normalize_city("linköping")
         assert result == "Linkoping"
+
+    def test_display_city_uses_swedish_labels(self):
+        assert display_city("Gothenburg") == "Göteborg"
+        assert display_city("Malmo") == "Malmö"
+        assert display_city("Online") == "Distans"
+
+    def test_country_detection(self):
+        assert is_country_name("Belgien")
+        assert is_country_name("Usa")
+        assert not is_country_name("Uppsala")
 
 
 class TestNormalizeLanguage:
@@ -88,6 +100,14 @@ class TestNormalizeUniversity:
     def test_case_insensitive(self):
         result = normalize_university("KTH")
         assert result is not None
+
+    def test_chalmers_alias(self):
+        result = normalize_university("Chalmers")
+        assert result == "Chalmers tekniska högskola"
+
+    def test_mittuniversitetet_alias(self):
+        result = normalize_university("Mitt University")
+        assert result == "Mittuniversitetet"
 
     def test_unrecognized_returned_as_is(self):
         # Unknown university names pass through unchanged

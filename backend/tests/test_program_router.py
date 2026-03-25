@@ -68,3 +68,27 @@ def test_post_ingest_allows_valid_admin_key(mocker, monkeypatch):
         "embedded_in_qdrant": 1,
     }
     ingest.assert_called_once()
+
+
+def test_get_program_cities_normalizes_labels_and_excludes_countries(mocker, monkeypatch):
+    mock_db = mocker.MagicMock()
+    mock_db.query.return_value.filter.return_value.distinct.return_value.order_by.return_value.all.return_value = [
+        ("Belgien",),
+        ("Gothenburg",),
+        ("Göteborg",),
+        ("Malmo",),
+        ("Online",),
+        ("Uppsala",),
+    ]
+    monkeypatch.setattr(
+        program_router,
+        "settings",
+        SimpleNamespace(admin_api_key="admin-secret", app_env="development"),
+    )
+
+    client = create_test_client(mock_db)
+
+    response = client.get("/programs/cities")
+
+    assert response.status_code == 200
+    assert response.json() == ["Göteborg", "Malmö", "Distans", "Uppsala"]

@@ -55,16 +55,43 @@ CITY_ALIASES = {
     "varied": "Multiple locations",
 }
 
+DISPLAY_CITY_LABELS = {
+    "Boras": "Borås",
+    "Borlange": "Borlänge",
+    "Gavle": "Gävle",
+    "Gothenburg": "Göteborg",
+    "Jonkoping": "Jönköping",
+    "Linkoping": "Linköping",
+    "Malmo": "Malmö",
+    "Norrkoping": "Norrköping",
+    "Online": "Distans",
+    "Umea": "Umeå",
+    "Vasteras": "Västerås",
+}
+
 COUNTRY_ALIASES = {
+    "belgium": "Belgium",
+    "belgien": "Belgium",
     "sweden": "Sweden",
     "sverige": "Sweden",
     "denmark": "Denmark",
     "danmark": "Denmark",
+    "estonia": "Estonia",
+    "estland": "Estonia",
+    "france": "France",
+    "frankrike": "France",
+    "iceland": "Iceland",
+    "island": "Iceland",
     "norway": "Norway",
     "norge": "Norway",
     "finland": "Finland",
     "germany": "Germany",
     "tyskland": "Germany",
+    "united kingdom": "United Kingdom",
+    "uk": "United Kingdom",
+    "storbritannien": "United Kingdom",
+    "united states": "United States",
+    "usa": "United States",
     "netherlands": "Netherlands",
     "nederlanderna": "Netherlands",
     "europe": "Europe",
@@ -72,6 +99,19 @@ COUNTRY_ALIASES = {
 }
 
 UNIVERSITY_ALIASES = {
+    "chalmers": "Chalmers tekniska högskola",
+    "chalmers tekniska högskola": "Chalmers tekniska högskola",
+    "chalmers tekniska hogskola": "Chalmers tekniska högskola",
+    "chalmers university of technology": "Chalmers tekniska högskola",
+    "göteborgs universitet": "Göteborgs universitet",
+    "goteborgs universitet": "Göteborgs universitet",
+    "university of gothenburg": "Göteborgs universitet",
+    "mittuniversitetet": "Mittuniversitetet",
+    "mitt university": "Mittuniversitetet",
+    "malmö universitet": "Malmö universitet",
+    "malmo universitet": "Malmö universitet",
+    "malmö university": "Malmö universitet",
+    "malmo university": "Malmö universitet",
     "stockholms universitet": "Stockholm University",
     "stockholm university": "Stockholm University",
     "su": "Stockholm University",
@@ -161,6 +201,20 @@ def normalize_country(value: Optional[str]) -> Optional[str]:
         return None
 
     return COUNTRY_ALIASES.get(_fold(text), text.title())
+
+
+def is_country_name(value: Optional[str]) -> bool:
+    text = _clean(value)
+    if not text:
+        return False
+    return _fold(text) in COUNTRY_ALIASES
+
+
+def display_city(value: Optional[str]) -> str:
+    normalized = normalize_city(value)
+    if not normalized:
+        return ""
+    return DISPLAY_CITY_LABELS.get(normalized, normalized)
 
 
 def normalize_university(value: Optional[str]) -> Optional[str]:

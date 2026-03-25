@@ -386,6 +386,40 @@ class ChatService:
         )
 
     @staticmethod
+    def _should_clear_city_for_university_constraint(extracted: Dict[str, Any]) -> bool:
+        return bool(
+            extracted.get("preferred_universities")
+            and not extracted.get("preferred_cities")
+        )
+
+    @staticmethod
+    def _targets_medical_doctor(message: str, profile: Dict[str, Any]) -> bool:
+        text = (message or "").strip().lower()
+        if any(marker in text for marker in ["läkarprogram", "lakarprogram", "läkare", "doctor"]):
+            return True
+        goal_terms = {
+            str(goal).strip().lower()
+            for goal in (profile.get("career_goals") or [])
+            if str(goal).strip()
+        }
+        return bool(goal_terms & {"läkare", "doctor"})
+
+    @staticmethod
+    def _apply_specific_programme_constraints(message: str, programs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        text = (message or "").strip().lower()
+        doctor_requested = any(marker in text for marker in ["läkarprogram", "lakarprogram", "läkare", "doctor"])
+        if doctor_requested:
+            narrowed = [
+                program for program in programs
+                if "läkarprogram" in str(program.get("name") or "").lower()
+                or "lakarprogram" in str(program.get("name") or "").lower()
+            ]
+            if narrowed:
+                return narrowed
+            return []
+        return programs
+
+    @staticmethod
     def _apply_direct_filter_overrides(
         profile: Dict[str, Any],
         extracted: Dict[str, Any],
@@ -404,6 +438,8 @@ class ChatService:
                 normalize_university(value) or value
                 for value in extracted["preferred_universities"]
             ]
+            if ChatService._should_clear_city_for_university_constraint(extracted):
+                updated["preferred_cities"] = []
         if extracted.get("excluded_universities"):
             updated["excluded_universities"] = ChatService._dedupe_list(
                 [
@@ -450,6 +486,8 @@ class ChatService:
 
         if extracted.get("preferred_universities"):
             updated_filters["universities"] = extracted["preferred_universities"]
+            if ChatService._should_clear_city_for_university_constraint(extracted):
+                updated_filters["cities"] = []
         if extracted.get("excluded_universities"):
             updated_filters["exclude_universities"] = extracted["excluded_universities"]
 
@@ -1983,16 +2021,30 @@ class ChatService:
         # 7) log final merged profile before retrieval
         self.logger.info("Final merged profile before retrieval: %s", profile)
 
-        retrieval_query = self._build_retrieval_query(
-            message.strip() or "study program recommendations",
-            profile,
-        )
-        if widen_scope_requested and not extracted.get("interests") and not extracted.get("career_goals"):
-            retrieval_query = self._build_scope_widen_query(profile)
         effective_filters = self._build_effective_filters(profile, filters)
         effective_filters.update(self.guidance_policy.build_retrieval_filters(intent))
+        retrieval_profile = profile
+        widened_from_level: Optional[str] = None
+        if (
+            not intent.get("is_listing_query")
+            and effective_filters.get("level") == "bachelor"
+            and self._targets_medical_doctor(message, profile)
+        ):
+            retrieval_profile = dict(profile)
+            retrieval_profile["study_level"] = None
+            effective_filters = dict(effective_filters)
+            effective_filters["level"] = None
+            widened_from_level = self._display_level("bachelor")
+
+        retrieval_query = self._build_retrieval_query(
+            message.strip() or "study program recommendations",
+            retrieval_profile,
+        )
+        if widen_scope_requested and not extracted.get("interests") and not extracted.get("career_goals"):
+            retrieval_query = self._build_scope_widen_query(retrieval_profile)
         if intent.get("is_listing_query"):
             programs = self.retrieval.list_programs(filters=effective_filters, limit=8)
+            programs = self._apply_specific_programme_constraints(message, programs)
             citation_programs = programs
             listing_city = profile.get("preferred_cities")[0] if profile.get("preferred_cities") else (
                 "the selected city" if lang == "en" else "den valda staden"
@@ -2002,10 +2054,16 @@ class ChatService:
             programs = self.retrieval.search_programs(
                 query=retrieval_query,
                 filters=effective_filters,
-                profile=profile,
+                profile=retrieval_profile,
             )
+            programs = self._apply_specific_programme_constraints(message, programs)
+            if not programs and self._targets_medical_doctor(message, retrieval_profile):
+                programs = self._apply_specific_programme_constraints(
+                    message,
+                    self.retrieval.list_programs(filters=effective_filters, limit=25),
+                )
             citation_programs = programs
-            recommendations = self.recommender.generate(profile, programs, limit=5)
+            recommendations = self.recommender.generate(retrieval_profile, programs, limit=5)
 
         # Defensive fallback: still avoid an empty response body.
         widened_from_city: Optional[str] = None
@@ -2047,7 +2105,6 @@ class ChatService:
                 )
 
         # If level filter is active and results are still empty, widen by removing level.
-        widened_from_level: Optional[str] = None
         if not recommendations and not intent.get("is_listing_query") and effective_filters.get("level"):
             original_level = str(effective_filters["level"])
             level_widened_profile = dict(profile)

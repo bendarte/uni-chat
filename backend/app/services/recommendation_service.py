@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from app.schemas import RecommendationItem
 from app.services.explanation_service import ExplanationService
 from app.services.language_normalization import infer_topics_from_text
+from app.services.metadata_normalization import display_city
 from app.services.source_validation import is_valid_source_url, normalize_source_url
 
 # Minimum rerank score for a program to be included in results.
@@ -299,7 +300,7 @@ class RecommendationService:
                 source_id=source_id,
                 name=explanation_payload.get("program", program.get("name", "")),
                 university=explanation_payload.get("university", program.get("university", "")),
-                city=program.get("city"),
+                city=display_city(program.get("city")),
                 explanation=explanation_payload.get("explanation", []),
                 source_url=source_url,
                 score=score,

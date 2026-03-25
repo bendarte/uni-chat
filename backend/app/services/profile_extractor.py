@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from app.services.language_normalization import normalize_interests
 from app.services.metadata_normalization import (
+    UNIVERSITY_ALIASES,
     normalize_city,
     normalize_language,
     normalize_study_pace,
@@ -68,20 +69,7 @@ KNOWN_COUNTRIES = [
     "europe",
 ]
 
-KNOWN_UNIVERSITIES = [
-    "stockholms universitet",
-    "stockholm university",
-    "su",
-    "stockholm school of economics",
-    "sse",
-    "handelshögskolan",
-    "handelshogskolan",
-    "kth",
-    "kth royal institute of technology",
-    "karolinska institutet",
-    "malmö universitet",
-    "malmö university",
-]
+KNOWN_UNIVERSITIES = sorted(UNIVERSITY_ALIASES.keys(), key=len, reverse=True)
 
 CAREER_PATTERNS = {
     "ai engineer": ["ai engineer", "ml engineer", "ai-utvecklare"],

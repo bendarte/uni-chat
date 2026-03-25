@@ -46,6 +46,20 @@ const STUDY_PACE_LABELS: Record<string, string> = {
   "part-time": "Deltid",
 };
 
+const CITY_LABELS: Record<string, string> = {
+  Boras: "Borås",
+  Borlange: "Borlänge",
+  Gavle: "Gävle",
+  Gothenburg: "Göteborg",
+  Jonkoping: "Jönköping",
+  Linkoping: "Linköping",
+  Malmo: "Malmö",
+  Norrkoping: "Norrköping",
+  Online: "Distans",
+  Umea: "Umeå",
+  Vasteras: "Västerås",
+};
+
 function normalizeLevel(value: unknown): string {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "master") return "master";
@@ -88,10 +102,16 @@ function normalizeStudyPace(value: unknown): string {
   return "";
 }
 
+function normalizeCityLabel(value: unknown): string {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+  return CITY_LABELS[normalized] ?? normalized;
+}
+
 function mapActiveFiltersToSidebarFilters(
   activeFilters?: ActiveFiltersResponse | null
 ): Filters {
-  const city = String(activeFilters?.city ?? "").trim();
+  const city = normalizeCityLabel(activeFilters?.city);
   return {
     level: normalizeLevel(activeFilters?.level),
     cities: city ? [city] : [],

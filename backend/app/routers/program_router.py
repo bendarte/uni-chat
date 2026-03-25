@@ -9,6 +9,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import Program
 from app.schemas import IngestResponse, ProgramCreate, ProgramResponse
+from app.services.metadata_normalization import display_city, is_country_name
 from app.services.source_validation import normalize_source_url
 from scripts.ingest_all import ingest_all as run_ingestion_pipeline
 
@@ -42,7 +43,23 @@ def list_program_cities(db: Session = Depends(get_db)) -> List[str]:
         .order_by(Program.city.asc())
         .all()
     )
-    return [str(row[0]) for row in rows if row and str(row[0]).strip()]
+    cities: List[str] = []
+    seen = set()
+    for row in rows:
+        if not row:
+            continue
+        raw_value = str(row[0]).strip()
+        if not raw_value or is_country_name(raw_value):
+            continue
+        label = display_city(raw_value)
+        if not label:
+            continue
+        key = label.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cities.append(label)
+    return cities
 
 
 @router.post("/programs", response_model=ProgramResponse, dependencies=[Depends(require_admin_api_key)])

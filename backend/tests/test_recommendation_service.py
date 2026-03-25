@@ -194,3 +194,30 @@ class TestLooksLikeCourse:
     def test_master_programme_not_course(self):
         program = make_program(name="Master Programme in Data Science")
         assert not RecommendationService._looks_like_course(program, "https://uni.se/programmes/ds")
+
+
+def test_generate_normalizes_city_labels_in_recommendations(mocker):
+    service = RecommendationService()
+    mocker.patch.object(
+        service.explainer,
+        "generate_program_explanation",
+        return_value={
+            "program": "Datateknik",
+            "university": "Chalmers tekniska högskola",
+            "explanation": ["Bra match"],
+            "source_id": "ref-1",
+        },
+    )
+    programs = [
+        make_program(
+            program_id="1",
+            name="Datateknik",
+            university="Chalmers tekniska högskola",
+            city="Gothenburg",
+        )
+    ]
+
+    recommendations = service.generate(make_profile(), programs, limit=1)
+
+    assert len(recommendations) == 1
+    assert recommendations[0].city == "Göteborg"

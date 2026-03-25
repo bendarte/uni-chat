@@ -192,3 +192,75 @@ def test_explicit_role_goal_prefers_role_terms():
     )
 
     assert goals == ["läkare"]
+
+
+def test_university_override_clears_stale_city_constraints():
+    profile = {
+        "preferred_cities": ["Malmo"],
+        "preferred_universities": [],
+        "excluded_universities": [],
+        "study_level": None,
+        "language": None,
+        "study_pace": None,
+        "locked_fields": [],
+    }
+    extracted = {
+        "preferred_cities": [],
+        "preferred_universities": ["Mittuniversitetet"],
+        "excluded_universities": [],
+        "study_level": None,
+        "language": None,
+        "study_pace": None,
+    }
+
+    updated = ChatService._apply_direct_filter_overrides(profile, extracted, "mittuniversitetet")
+    request_filters = ChatService._apply_direct_request_filter_overrides({}, extracted, "mittuniversitetet")
+
+    assert updated["preferred_universities"] == ["Mittuniversitetet"]
+    assert updated["preferred_cities"] == []
+    assert request_filters["universities"] == ["Mittuniversitetet"]
+    assert request_filters["cities"] == []
+
+
+def test_detects_medical_doctor_goal():
+    assert ChatService._targets_medical_doctor(
+        "Jag vill bli läkare helst i Stockholm",
+        {"career_goals": []},
+    ) is True
+    assert ChatService._targets_medical_doctor(
+        "Jag vill läsa humaniora",
+        {"career_goals": ["läkare"]},
+    ) is True
+    assert ChatService._targets_medical_doctor(
+        "Jag vill läsa humaniora",
+        {"career_goals": []},
+    ) is False
+
+
+def test_specific_programme_constraint_prefers_lakarprogrammet():
+    programs = [
+        {"name": "Arbetsterapeutprogrammet"},
+        {"name": "Läkarprogrammet"},
+        {"name": "Biomedicinska analytikerprogrammet"},
+    ]
+
+    narrowed = ChatService._apply_specific_programme_constraints(
+        "inte alla vård saker endast läkarprogrammet",
+        programs,
+    )
+
+    assert narrowed == [{"name": "Läkarprogrammet"}]
+
+
+def test_medical_doctor_constraint_blocks_other_healthcare_programs():
+    programs = [
+        {"name": "Arbetsterapeutprogrammet"},
+        {"name": "Biomedicinska analytikerprogrammet"},
+    ]
+
+    narrowed = ChatService._apply_specific_programme_constraints(
+        "Jag vill bli läkare helst i Stockholm",
+        programs,
+    )
+
+    assert narrowed == []
