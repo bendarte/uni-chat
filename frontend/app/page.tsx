@@ -277,21 +277,29 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[color:var(--line)] bg-[color:var(--surface-muted)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:px-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[color:var(--accent)] text-lg font-semibold text-white shadow-lg shadow-[color:var(--accent)]/25">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[color:var(--accent)] text-lg font-semibold text-white shadow-lg shadow-[color:var(--accent)]/25 sm:h-12 sm:w-12">
               U
             </div>
-            <div>
+            <div className="min-w-0">
               <p
                 className="text-[10px] uppercase tracking-[0.28em] text-[color:var(--ink-soft)]"
                 style={{ fontFamily: "var(--font-mono), monospace" }}
               >
                 UniChat
               </p>
-              <h1 className="text-lg font-semibold text-[color:var(--ink)]">
+              <h1 className="text-base font-semibold text-[color:var(--ink)] sm:text-lg">
                 Hitta rätt utbildning med mer precision
               </h1>
+              <div className="mt-2 flex flex-wrap gap-2 lg:hidden">
+                <span className="rounded-full border border-[color:var(--line)] bg-white/70 px-3 py-1 text-[11px] text-[color:var(--ink-soft)]">
+                  {programCountLabel}
+                </span>
+                <span className="rounded-full border border-[color:var(--line)] bg-white/70 px-3 py-1 text-[11px] text-[color:var(--ink-soft)]">
+                  Live filter + multi-turn
+                </span>
+              </div>
             </div>
           </div>
 
@@ -317,7 +325,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex max-w-7xl gap-4 px-4 py-4 sm:gap-6 sm:py-6 lg:px-6">
         <div
           className={`${
             sidebarOpen ? "fixed inset-0 z-40 flex bg-black/25 backdrop-blur-sm" : "hidden"
@@ -333,9 +341,9 @@ export default function Home() {
           </div>
         </div>
 
-        <main className="flex min-h-[calc(100vh-126px)] flex-1 flex-col gap-5">
+        <main className="flex min-h-[calc(100vh-112px)] flex-1 flex-col gap-4 sm:gap-5">
           <section className="overflow-hidden rounded-[32px] border border-[color:var(--line)] bg-[color:var(--card)] shadow-[var(--shadow)]">
-            <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:p-8">
+            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:gap-6 lg:p-8">
               <div className="space-y-4">
                 <p
                   className="text-[10px] uppercase tracking-[0.28em] text-[color:var(--ink-soft)]"
@@ -343,7 +351,7 @@ export default function Home() {
                 >
                   Svensk utbildningssök
                 </p>
-                <h2 className="max-w-2xl text-3xl font-semibold leading-tight text-[color:var(--ink)] lg:text-4xl">
+                <h2 className="max-w-2xl text-2xl font-semibold leading-tight text-[color:var(--ink)] sm:text-3xl lg:text-4xl">
                   Få programförslag som känns relevanta, inte bara generiska.
                 </h2>
                 <p className="max-w-2xl text-sm leading-6 text-[color:var(--ink-soft)] lg:text-base">
@@ -404,7 +412,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="flex min-h-[calc(100vh-320px)] flex-1 flex-col overflow-hidden rounded-[32px] border border-[color:var(--line)] bg-[color:var(--card)] shadow-[var(--shadow)]">
+          <section className="flex min-h-[calc(100vh-340px)] flex-1 flex-col overflow-hidden rounded-[32px] border border-[color:var(--line)] bg-[color:var(--card)] shadow-[var(--shadow)] sm:min-h-[calc(100vh-320px)]">
             <div className="border-b border-[color:var(--line)] px-4 py-4 lg:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -435,14 +443,14 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:py-5 lg:px-6">
               <div className="mx-auto max-w-3xl space-y-4">
                 {messages.length === 0 && (
-                  <div className="rounded-[28px] border border-dashed border-[color:var(--line)] bg-white/60 p-6 text-center lg:p-10">
+                  <div className="rounded-[28px] border border-dashed border-[color:var(--line)] bg-white/60 p-5 text-center sm:p-6 lg:p-10">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-[color:var(--accent-soft)] text-2xl text-[color:var(--accent-strong)] shadow-lg shadow-[color:var(--accent)]/10">
                       U
                     </div>
-                    <h2 className="mt-5 text-2xl font-semibold text-[color:var(--ink)]">
+                    <h2 className="mt-5 text-xl font-semibold text-[color:var(--ink)] sm:text-2xl">
                       Börja brett, snäva in snabbt.
                     </h2>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
@@ -454,7 +462,7 @@ export default function Home() {
                         <button
                           key={prompt}
                           onClick={() => setInput(prompt)}
-                          className="rounded-[22px] border border-[color:var(--line)] bg-white/80 px-4 py-3 text-sm text-[color:var(--ink)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--accent-soft)]"
+                          className="min-h-14 rounded-[22px] border border-[color:var(--line)] bg-white/80 px-4 py-3 text-left text-sm text-[color:var(--ink)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--accent-soft)]"
                         >
                           {prompt}
                         </button>
@@ -497,11 +505,11 @@ export default function Home() {
             </div>
 
             <div className="border-t border-[color:var(--line)] bg-[color:var(--surface-strong)] px-4 py-4 lg:px-6">
-              <div className="mx-auto flex max-w-3xl items-end gap-3 rounded-[28px] border border-[color:var(--line)] bg-white/90 p-3 shadow-[0_16px_40px_rgba(31,42,42,0.08)]">
+              <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-[28px] border border-[color:var(--line)] bg-white/90 p-3 shadow-[0_16px_40px_rgba(31,42,42,0.08)] sm:flex-row sm:items-end">
                 <textarea
                   ref={inputRef}
                   rows={1}
-                  className="flex-1 resize-none bg-transparent px-3 py-2 text-sm text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-soft)]"
+                  className="min-h-[3rem] w-full flex-1 resize-none bg-transparent px-3 py-2 text-sm text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-soft)]"
                   placeholder="Vad vill du bli, eller vad är du intresserad av?"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -511,7 +519,7 @@ export default function Home() {
                 <button
                   onClick={send}
                   disabled={!input.trim() || loading}
-                  className="rounded-full bg-[color:var(--accent)] px-5 py-3 text-sm font-medium text-white transition hover:bg-[color:var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-full rounded-full bg-[color:var(--accent)] px-5 py-3 text-sm font-medium text-white transition hover:bg-[color:var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   Skicka
                 </button>

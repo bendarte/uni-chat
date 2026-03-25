@@ -22,8 +22,8 @@ export default function RecommendationCard({ rec, index }: Props) {
   const lang = LANG_LABELS[rec.language] ?? rec.language;
 
   return (
-    <article className="rounded-[28px] border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)] transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--accent)]/25">
-      <div className="flex items-start justify-between gap-3">
+    <article className="rounded-[28px] border border-[color:var(--line)] bg-[color:var(--card)] p-4 shadow-[var(--shadow)] transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--accent)]/25 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex-1 space-y-2">
           <div
             className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-soft)]"
@@ -54,7 +54,7 @@ export default function RecommendationCard({ rec, index }: Props) {
             href={rec.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-1 text-xs font-medium text-[color:var(--accent-strong)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--accent-soft)]"
+            className="inline-flex w-full justify-center rounded-full border border-[color:var(--line)] bg-white/80 px-3 py-2 text-xs font-medium text-[color:var(--accent-strong)] transition hover:border-[color:var(--accent)] hover:bg-[color:var(--accent-soft)] sm:w-auto sm:py-1"
           >
             Öppna
           </a>
