@@ -108,6 +108,100 @@ Verifiera efter bootstrap:
 - chatten returnerar rekommendationer
 - länkar i rekommendationerna är riktiga programlänkar
 
+## Data-backfill och Qdrant-republish
+
+Använd detta när du har lagt till ny normaliseringslogik för fält som redan finns i Postgres, till exempel `university` eller `city`.
+
+### När det behövs
+
+- samma lärosäte visas under flera namn i rekommendationer
+- felaktiga city-värden har lagrats historiskt
+- Qdrant använder payloads eller embeddings byggda från äldre, sämre metadata
+
+### Säker ordning
+
+1. Kör alltid dry-run först
+2. Kontrollera att antalet uppdateringar ser rimligt ut
+3. Kör skarp backfill mot Postgres
+4. Republish:a Qdrant från den normaliserade databasen
+5. Kör samma dry-run igen och verifiera att `updated` är `0`
+6. Smoke-testa chatten och `/programs/cities`
+
+### Dry-run
+
+Kör i samma miljö som backend använder:
+
+```bash
+cd backend
+python scripts/backfill_university_labels.py --field both --dry-run --json
+```
+
+Byt `both` mot `university` eller `city` om du bara vill backfilla ett fält.
+
+Förväntat:
+
+- JSON med `checked`
+- JSON med `updated`
+- lista över vilka rader som skulle ändras
+
+### Skarp körning utan Qdrant
+
+Om du först vill uppdatera bara Postgres:
+
+```bash
+cd backend
+python scripts/backfill_university_labels.py --field both --json
+```
+
+### Skarp körning med Qdrant-republish
+
+När du vill bygga om vektorlagret från den redan normaliserade databasen:
+
+```bash
+cd backend
+python scripts/backfill_university_labels.py --field both --republish-qdrant --json
+```
+
+Detta gör följande:
+
+- uppdaterar historiska rader i Postgres
+- bygger en ny Qdrant-collection från den normaliserade datan
+- flyttar aliaset `programs_active` till den nya collectionen
+- tar bort föregående aktiva collection när publishen lyckats
+
+### Efterkontroller
+
+Kör samma dry-run igen:
+
+```bash
+cd backend
+python scripts/backfill_university_labels.py --field both --dry-run --json
+```
+
+Förväntat efter en lyckad körning:
+
+- `updated: 0`
+
+Kontrollera sedan:
+
+```bash
+curl https://DIN-BACKEND-DOMÄN/ready
+curl -H "X-API-Key: ..." https://DIN-BACKEND-DOMÄN/programs/cities
+```
+
+Och smoke-testa minst:
+
+- ett universitet med tidigare aliasproblem, till exempel Chalmers eller Göteborgs universitet
+- en city-fråga där felaktiga landvärden tidigare förekom
+- en vanlig chatfråga med 3–5 rekommendationer
+
+### Driftanteckningar
+
+- kör helst detta i en one-off shell eller jobbmiljö, inte i webprocessen
+- Qdrant-republish gör OpenAI-embeddings och kan ta några minuter beroende på datamängd
+- kör först i staging om du är osäker på antal uppdateringar eller kostnad
+- om dry-run visar oväntat många ändringar, stoppa och kontrollera normaliseringsreglerna innan skarp körning
+
 ## Frontend på Vercel
 
 ### 1. Skapa projektet
