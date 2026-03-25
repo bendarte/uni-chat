@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
+from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -68,6 +70,36 @@ def test_post_ingest_allows_valid_admin_key(mocker, monkeypatch):
         "embedded_in_qdrant": 1,
     }
     ingest.assert_called_once()
+
+
+def test_post_program_normalizes_university_aliases(mocker, monkeypatch):
+    monkeypatch.setattr(
+        program_router,
+        "settings",
+        SimpleNamespace(admin_api_key="admin-secret", app_env="development"),
+    )
+    mock_db = mocker.MagicMock()
+
+    def refresh_program(program):
+        program.id = uuid4()
+        program.last_updated = datetime.now(timezone.utc)
+
+    mock_db.refresh.side_effect = refresh_program
+    client = create_test_client(mock_db)
+
+    response = client.post(
+        "/programs",
+        headers={"X-Admin-API-Key": "admin-secret"},
+        json={
+            "name": "Datateknik",
+            "university": "Chalmers University of Technology",
+            "city": "Gothenburg",
+            "source_url": "https://example.com/programs/datateknik",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["university"] == "Chalmers tekniska högskola"
 
 
 def test_get_program_cities_normalizes_labels_and_excludes_countries(mocker, monkeypatch):

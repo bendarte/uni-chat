@@ -18,6 +18,7 @@ from app.services.metadata_normalization import (
     normalize_country,
     normalize_language,
     normalize_study_pace,
+    normalize_university,
 )
 
 RAW = Path(__file__).resolve().parent / "programs_raw.json"
@@ -121,7 +122,8 @@ def looks_like_program(name: str, source_url: str) -> bool:
 
 def to_db_record(item: Dict) -> Optional[Dict]:
     name = clean_text(item.get("name"))
-    university = clean_text(item.get("university"))
+    university_raw = clean_text(item.get("university"))
+    university = normalize_university(university_raw) or university_raw
     source_url = normalize_source_url(clean_text(item.get("source_url")))
 
     if not name or not university or not is_valid_source_url(source_url):

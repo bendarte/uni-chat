@@ -18,6 +18,7 @@ from app.services.metadata_normalization import (
     normalize_country,
     normalize_language,
     normalize_study_pace,
+    normalize_university,
 )
 
 RAW_OUTPUT = Path(__file__).resolve().parent / "programs_raw.json"
@@ -164,7 +165,8 @@ def parse_api_item(item: Dict, source: str, default_language: str) -> Optional[D
         return None
 
     name = clean_text(alt.get("titel"))
-    university = clean_text(alt.get("organisation"))
+    university_raw = clean_text(alt.get("organisation"))
+    university = normalize_university(university_raw) or university_raw
     city = normalize_city(clean_text(alt.get("studieort")))
     level_raw = clean_text(alt.get("utbildningsniva"))
     level = normalize_level(level_raw)

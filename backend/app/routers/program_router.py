@@ -9,7 +9,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import Program
 from app.schemas import IngestResponse, ProgramCreate, ProgramResponse
-from app.services.metadata_normalization import display_city, is_country_name
+from app.services.metadata_normalization import display_city, is_country_name, normalize_university
 from app.services.source_validation import normalize_source_url
 from scripts.ingest_all import ingest_all as run_ingestion_pipeline
 
@@ -68,6 +68,7 @@ def create_program(
 ) -> ProgramResponse:
     data = payload.model_dump()
     data["source_url"] = normalize_source_url(data.get("source_url"))
+    data["university"] = normalize_university(data.get("university")) or data.get("university")
     program = Program(**data)
     db.add(program)
     db.commit()
