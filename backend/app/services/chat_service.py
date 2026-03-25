@@ -8,6 +8,7 @@ from app.services.guidance_policy import GuidancePolicy
 from app.services.intent_service import IntentService
 from app.services.language_normalization import normalize_interests
 from app.services.metadata_normalization import (
+    display_city,
     normalize_city,
     normalize_language,
     normalize_study_pace,
@@ -609,7 +610,7 @@ class ChatService:
         cities = effective.get("cities") or []
         city = cities[0] if isinstance(cities, list) and cities else ""
         return {
-            "city": city,
+            "city": display_city(city) if city else "",
             "level": str(effective.get("level") or "").strip().lower(),
             "language": normalize_language(effective.get("language")) or "",
             "study_pace": normalize_study_pace(effective.get("study_pace")) or "",
@@ -790,20 +791,10 @@ class ChatService:
 
     @staticmethod
     def _display_city(city: Optional[str]) -> str:
-        mapping = {
-            "Boras": "Borås",
-            "Gavle": "Gävle",
-            "Gothenburg": "Göteborg",
-            "Jonkoping": "Jönköping",
-            "Linkoping": "Linköping",
-            "Malmo": "Malmö",
-            "Norrkoping": "Norrköping",
-            "Online": "distans",
-            "Umea": "Umeå",
-            "Vasteras": "Västerås",
-        }
-        value = str(city or "").strip()
-        return mapping.get(value, value)
+        label = display_city(city)
+        if label == "Distans":
+            return "distans"
+        return label
 
     @staticmethod
     def _display_level(level: Optional[str]) -> str:

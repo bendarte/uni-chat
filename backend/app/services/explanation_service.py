@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 
+from app.services.metadata_normalization import display_city
 from app.services.source_validation import is_valid_source_url, normalize_source_url
 
 
@@ -34,10 +35,10 @@ class ExplanationService:
 
     @staticmethod
     def _display_city(city: Any) -> str:
-        value = str(city or "").strip()
-        if value == "Online":
+        label = display_city(city)
+        if label == "Distans":
             return "distans"
-        return value
+        return label
 
     @staticmethod
     def _display_level(level: Any) -> str:

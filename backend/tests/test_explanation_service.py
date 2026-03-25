@@ -14,3 +14,8 @@ def test_energy_transition_track_gets_explanation_from_program_text():
     explanation = service._guidance_match(profile, program)
 
     assert "energi" in explanation.lower() or "hållbar" in explanation.lower()
+
+
+def test_display_city_normalizes_known_aliases():
+    assert ExplanationService._display_city("Gothenburg") == "Göteborg"
+    assert ExplanationService._display_city("Online") == "distans"

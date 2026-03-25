@@ -33,7 +33,7 @@ def test_build_active_filters_uses_request_filters_when_present():
     )
 
     assert active == {
-        "city": "Gothenburg",
+        "city": "Göteborg",
         "level": "master",
         "language": "swedish",
         "study_pace": "",
