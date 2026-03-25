@@ -4,6 +4,20 @@ UniChat is an AI-powered study advisor for Swedish higher education built around
 
 Live demo: `https://uni-chat-mu.vercel.app`
 
+## Screenshots
+
+### Landing + Filters
+
+![UniChat landing and filters](docs/screenshots/01-unichat-landing-and-filters.png)
+
+### Conversation Start
+
+![UniChat conversation start](docs/screenshots/02-unichat-conversation-start.png)
+
+### Recommendations
+
+![UniChat recommendations](docs/screenshots/03-unichat-recommendations.png)
+
 ## What It Does
 
 - natural-language programme search with multi-turn chat
