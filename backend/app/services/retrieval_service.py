@@ -117,6 +117,13 @@ class RetrievalService:
         return str(value).strip().lower()
 
     @staticmethod
+    def _normalize_university_label(value: Optional[str]) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        return normalize_university(text) or text
+
+    @staticmethod
     def _normalize_filters(filters: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         filters = dict(filters or {})
         filters["_city_locked"] = bool(filters.get("_city_locked"))
@@ -684,7 +691,7 @@ class RetrievalService:
             item = {
                 "program_id": str(payload.get("program_id") or point.id),
                 "name": payload.get("name"),
-                "university": payload.get("university"),
+                "university": self._normalize_university_label(payload.get("university")),
                 "city": normalize_city(payload.get("city")),
                 "country": payload.get("country"),
                 "level": self._normalize_value(payload.get("level")),
@@ -775,7 +782,7 @@ class RetrievalService:
             item = {
                 "program_id": str(row.id),
                 "name": row.name,
-                "university": row.university,
+                "university": self._normalize_university_label(row.university),
                 "city": normalize_city(row.city),
                 "country": row.country,
                 "level": self._normalize_value(row.level),
@@ -855,7 +862,7 @@ class RetrievalService:
                 item.update(
                     {
                         "name": row.name,
-                        "university": row.university,
+                        "university": self._normalize_university_label(row.university),
                         "city": normalize_city(row.city),
                         "country": row.country,
                         "level": self._normalize_value(row.level),
@@ -1088,7 +1095,7 @@ class RetrievalService:
             item = {
                 "program_id": str(row.id),
                 "name": row.name,
-                "university": row.university,
+                "university": self._normalize_university_label(row.university),
                 "city": normalize_city(row.city),
                 "country": row.country,
                 "level": self._normalize_value(row.level),

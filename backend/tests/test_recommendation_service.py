@@ -221,3 +221,71 @@ def test_generate_normalizes_city_labels_in_recommendations(mocker):
 
     assert len(recommendations) == 1
     assert recommendations[0].city == "Göteborg"
+
+
+def test_generate_normalizes_university_labels_in_recommendations(mocker):
+    service = RecommendationService()
+    mocker.patch.object(
+        service.explainer,
+        "generate_program_explanation",
+        return_value={
+            "program": "Datateknik",
+            "university": "Chalmers University of Technology",
+            "explanation": ["Bra match"],
+            "source_id": "ref-1",
+        },
+    )
+
+    recommendations = service.generate(
+        make_profile(),
+        [
+            make_program(
+                program_id="1",
+                name="Datateknik",
+                university="Chalmers University of Technology",
+                city="Gothenburg",
+            )
+        ],
+        limit=1,
+    )
+
+    assert len(recommendations) == 1
+    assert recommendations[0].university == "Chalmers tekniska högskola"
+
+
+def test_generate_dedupes_mixed_university_aliases(mocker):
+    service = RecommendationService()
+    mocker.patch.object(
+        service.explainer,
+        "generate_program_explanation",
+        side_effect=[
+            {
+                "program": "Datateknik",
+                "university": "Chalmers tekniska högskola",
+                "explanation": ["Bra match"],
+                "source_id": "ref-1",
+            }
+        ],
+    )
+
+    recommendations = service.generate(
+        make_profile(),
+        [
+            make_program(
+                program_id="1",
+                name="Datateknik",
+                university="Chalmers University of Technology",
+                city="Gothenburg",
+            ),
+            make_program(
+                program_id="2",
+                name="Datateknik",
+                university="Chalmers tekniska högskola",
+                city="Gothenburg",
+            ),
+        ],
+        limit=5,
+    )
+
+    assert len(recommendations) == 1
+    assert recommendations[0].university == "Chalmers tekniska högskola"

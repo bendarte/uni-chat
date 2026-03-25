@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from app.schemas import RecommendationItem
 from app.services.explanation_service import ExplanationService
 from app.services.language_normalization import infer_topics_from_text
-from app.services.metadata_normalization import display_city
+from app.services.metadata_normalization import display_city, normalize_university
 from app.services.source_validation import is_valid_source_url, normalize_source_url
 
 # Minimum rerank score for a program to be included in results.
@@ -280,9 +280,10 @@ class RecommendationService:
                 continue
             if self._looks_like_course(program, source_url) and len(items) >= _MAX_COURSE_RESULTS:
                 continue
+            normalized_university = normalize_university(program.get("university")) or str(program.get("university", "")).strip()
             dedupe_key = (
                 str(program.get("name", "")).strip().lower(),
-                str(program.get("university", "")).strip().lower(),
+                normalized_university.lower(),
                 str(program.get("city", "")).strip().lower(),
             )
             if dedupe_key in seen:
@@ -299,7 +300,9 @@ class RecommendationService:
                 program_id=program_id,
                 source_id=source_id,
                 name=explanation_payload.get("program", program.get("name", "")),
-                university=explanation_payload.get("university", program.get("university", "")),
+                university=normalize_university(
+                    explanation_payload.get("university", program.get("university", ""))
+                ) or str(explanation_payload.get("university", program.get("university", ""))).strip(),
                 city=display_city(program.get("city")),
                 explanation=explanation_payload.get("explanation", []),
                 source_url=source_url,
