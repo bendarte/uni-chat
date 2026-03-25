@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 from app.db import SessionLocal
 from app.models import Program
 from app.services.metadata_normalization import (
+    is_country_name,
     normalize_city,
     normalize_country,
     normalize_language,
@@ -31,7 +32,7 @@ def _serialize_program(row: Any) -> Dict[str, Any]:
         "id": str(row.id),
         "name": str(row.name or "").strip(),
         "university": normalize_university(row.university) or str(row.university or "").strip(),
-        "city": normalize_city(row.city),
+        "city": _normalize_city_storage(row.city),
         "country": normalize_country(row.country),
         "level": str(row.level or "").strip().lower() or None,
         "language": normalize_language(row.language),
@@ -46,36 +47,82 @@ def _serialize_program(row: Any) -> Dict[str, Any]:
     }
 
 
-def plan_university_backfill(rows: Iterable[Any]) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+def _normalize_city_storage(value: Any) -> Any:
+    text = str(value or "").strip()
+    if not text or text.lower() == "none":
+        return None
+    if is_country_name(text):
+        return None
+    return normalize_city(text) or text
+
+
+def plan_backfill(
+    rows: Iterable[Any],
+    *,
+    include_university: bool = True,
+    include_city: bool = False,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     updates: List[Dict[str, str]] = []
     programs: List[Dict[str, Any]] = []
 
     for row in rows:
-        current = str(row.university or "").strip()
-        normalized = normalize_university(current) or current
-        if current and normalized and current != normalized:
-            updates.append(
-                {
-                    "program_id": str(row.id),
-                    "from": current,
-                    "to": normalized,
-                }
-            )
+        if include_university:
+            current = str(row.university or "").strip()
+            normalized = normalize_university(current) or current
+            if current and normalized and current != normalized:
+                updates.append(
+                    {
+                        "program_id": str(row.id),
+                        "field": "university",
+                        "from": current,
+                        "to": normalized,
+                    }
+                )
+        if include_city:
+            current_city = str(row.city or "").strip()
+            normalized_city = _normalize_city_storage(row.city)
+            if current_city:
+                normalized_label = str(normalized_city or "").strip()
+                if current_city != normalized_label:
+                    updates.append(
+                        {
+                            "program_id": str(row.id),
+                            "field": "city",
+                            "from": current_city,
+                            "to": normalized_city,
+                        }
+                    )
         programs.append(_serialize_program(row))
 
     return updates, programs
 
 
-def apply_university_backfill() -> Dict[str, Any]:
+def plan_university_backfill(rows: Iterable[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    return plan_backfill(rows, include_university=True, include_city=False)
+
+
+def plan_city_backfill(rows: Iterable[Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    return plan_backfill(rows, include_university=False, include_city=True)
+
+
+def apply_backfill(*, include_university: bool, include_city: bool) -> Dict[str, Any]:
     with SessionLocal() as db:
         rows = db.query(Program).all()
-        updates, programs = plan_university_backfill(rows)
+        updates, programs = plan_backfill(
+            rows,
+            include_university=include_university,
+            include_city=include_city,
+        )
         if updates:
-            update_map = {item["program_id"]: item["to"] for item in updates}
+            update_map: Dict[str, Dict[str, Any]] = {}
+            for item in updates:
+                update_map.setdefault(item["program_id"], {})[item["field"]] = item["to"]
             for row in rows:
-                replacement = update_map.get(str(row.id))
-                if replacement:
-                    row.university = replacement
+                replacements = update_map.get(str(row.id), {})
+                if "university" in replacements:
+                    row.university = replacements["university"]
+                if "city" in replacements:
+                    row.city = replacements["city"]
             db.commit()
         return {
             "checked": len(rows),
@@ -105,15 +152,27 @@ def republish_qdrant_from_db(programs: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill canonical university labels in Postgres and optionally republish Qdrant.")
+    parser = argparse.ArgumentParser(description="Backfill canonical labels in Postgres and optionally republish Qdrant.")
+    parser.add_argument(
+        "--field",
+        choices=["university", "city", "both"],
+        default="university",
+        help="Which normalized field to backfill.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show planned updates without writing to Postgres.")
     parser.add_argument("--republish-qdrant", action="store_true", help="Re-embed and republish Qdrant from the normalized Postgres data.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
     args = parser.parse_args()
+    include_university = args.field in {"university", "both"}
+    include_city = args.field in {"city", "both"}
 
     with SessionLocal() as db:
         rows = db.query(Program).all()
-        updates, programs = plan_university_backfill(rows)
+        updates, programs = plan_backfill(
+            rows,
+            include_university=include_university,
+            include_city=include_city,
+        )
 
     result: Dict[str, Any] = {
         "checked": len(programs),
@@ -122,7 +181,10 @@ def main() -> None:
     }
 
     if not args.dry_run:
-        applied = apply_university_backfill()
+        applied = apply_backfill(
+            include_university=include_university,
+            include_city=include_city,
+        )
         result["checked"] = applied["checked"]
         result["updated"] = applied["updated"]
         result["updates"] = applied["updates"]
@@ -136,9 +198,9 @@ def main() -> None:
         return
 
     mode = "dry-run" if args.dry_run else "applied"
-    print(f"University backfill {mode}: {result['updated']} updates across {result['checked']} programs.")
+    print(f"{args.field.title()} backfill {mode}: {result['updated']} updates across {result['checked']} programs.")
     for item in result["updates"][:10]:
-        print(f"  {item['from']} -> {item['to']} ({item['program_id']})")
+        print(f"  [{item['field']}] {item['from']} -> {item['to']} ({item['program_id']})")
     if len(result["updates"]) > 10:
         print(f"  ... {len(result['updates']) - 10} more")
     if "qdrant" in result:
