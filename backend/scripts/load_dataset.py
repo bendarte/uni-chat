@@ -20,6 +20,7 @@ from app.models import Program
 from app.qdrant_client import (
     PROGRAMS_COLLECTION_NAME,
     PROGRAMS_COLLECTION_PREFIX,
+    IndexShrinkRefused,
     create_program_collection,
     delete_program_collection,
     get_qdrant_client,
@@ -341,11 +342,16 @@ def load_dataset() -> Dict[str, int]:
 
     min_publishable_rows = max(1, int(len(programs) * QDRANT_PUBLISH_MIN_RATIO)) if programs else 0
     if target_collection and embedded_rows >= min_publishable_rows:
-        publish_program_collection(target_collection)
-        published = True
-        deleted_rows = delete_stale_programs(programs)
-        if previous_collection and previous_collection != target_collection:
-            delete_program_collection(previous_collection)
+        try:
+            publish_program_collection(target_collection)
+        except IndexShrinkRefused as exc:
+            print(f"Skipping alias publish: {exc}")
+            delete_program_collection(target_collection)
+        else:
+            published = True
+            deleted_rows = delete_stale_programs(programs)
+            if previous_collection and previous_collection != target_collection:
+                delete_program_collection(previous_collection)
     elif target_collection:
         print(
             f"Skipping alias publish: embedded_rows={embedded_rows}, "

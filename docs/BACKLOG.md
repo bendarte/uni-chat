@@ -8,6 +8,9 @@ Findings that are out of scope for the step they were discovered in. Each entry 
 - **No scheduled re-ingest.** Programme data goes stale with no job to refresh it. *(found in step 01)*
 - **`Program` has no field for credits, start week, entry requirements, application code or tuition**, although the source CSV carries them. Needed for richer cards in steps 08–09. *(found in step 01)*
 - **No database migrations.** The schema is created with `Base.metadata.create_all()` at startup (`backend/app/main.py:104`). The first column change in production will need Alembic. *(found in step 01)*
+- **`import_antagning.py` never removes programmes that disappeared from antagning.se.** It inserts new rows and embeds everything in Postgres, so the catalogue only ever grows. `load_dataset.py` has `delete_stale_programs()` with a safety ratio; the real importer has no equivalent. *(found in step 01b)*
+- **`normalize_city()` does not map English city names.** `Gothenburg`, `Malmo`, `Jonkoping` and `Gavle` pass through unchanged, so rows written by the crawl path show up as separate cities next to `Göteborg`, `Malmö`, `Jönköping` and `Gävle` in the filter list. *(found in step 01b)*
+- **`QDRANT_PUBLISH_MIN_RATIO` in `load_dataset.py` compares embedded rows against fetched rows**, which is self-referential: a capped crawl always passes it. The real protection now lives in `publish_program_collection()`; decide whether the old check still earns its place. *(found in step 01b)*
 - **`run_full_test.py` judges source URLs with HEAD only**, so a server answering 405 Method Not Allowed is reported as broken (`https://www.hkr.se/program/LLK1U`). It should fall back to GET. *(found in step 01)*
 
 ## Configuration and tooling
@@ -19,6 +22,8 @@ Findings that are out of scope for the step they were discovered in. Each entry 
 - **Empty `.env` in the repo root.** Zero bytes, unused by `docker-compose.yml` (which reads `backend/.env`). Remove it or document it. *(found in step 01)*
 - **API keys are only validated when `APP_ENV=production`** (`backend/app/config.py:43-46`), and `APP_ENV` defaults to `development`. A deploy that forgets the variable starts without keys, silently. *(found in step 01)*
 - **httpx deprecation in 7 tests.** `tests/test_program_router.py` uses the deprecated `app=` shortcut; move to `transport=WSGITransport(app=...)`. *(found in step 01)*
+
+- **Next.js 14 is end of life.** 14.2.35 is the last release in the line (it is what the `next-14` dist-tag points at), and `npm audit --omit=dev` still reports 1 critical and 1 high against it, including a bundled `postcss` 8.4.31. Neither can be fixed inside 14.x; the only remedy is 15.x, where the current release is 15.5.28. Plan the major upgrade in step 06, with CI in place to catch regressions. *(found in step 01b)*
 
 ## API and frontend
 

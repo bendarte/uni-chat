@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from typing import Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -19,6 +20,10 @@ from app.logging_utils import log_event
 PROGRAMS_COLLECTION_NAME = "programs_active"
 PROGRAMS_COLLECTION_PREFIX = "programs"
 OPENAI_EMBEDDING_VECTOR_SIZE = 1536
+
+
+class IndexShrinkRefused(RuntimeError):
+    """Raised when publishing would point the alias at a much smaller collection."""
 
 
 @lru_cache(maxsize=1)
@@ -78,8 +83,55 @@ def ensure_program_collection(vector_size: int = OPENAI_EMBEDDING_VECTOR_SIZE) -
     )
 
 
+def _count_points(client: QdrantClient, collection_name: str) -> Optional[int]:
+    try:
+        response = client.count(collection_name=collection_name, exact=True)
+    except Exception:
+        return None
+    return int(response.count or 0)
+
+
+def _assert_publish_is_safe(client: QdrantClient, collection_name: str) -> None:
+    """Refuse to move the alias from a populated collection to a much smaller one.
+
+    A capped or partial ingest must never replace a complete index. The ratio is
+    compared against the collection the alias currently points at, not against
+    the number of rows the caller happened to fetch.
+    """
+    if settings.allow_index_shrink:
+        return
+    if not _collection_exists(client, PROGRAMS_COLLECTION_NAME):
+        return
+
+    live_points = _count_points(client, PROGRAMS_COLLECTION_NAME)
+    incoming_points = _count_points(client, collection_name)
+    if not live_points or incoming_points is None:
+        return
+
+    minimum = int(live_points * settings.index_publish_min_ratio)
+    if incoming_points >= minimum:
+        return
+
+    log_event(
+        logging.getLogger(__name__),
+        "warning",
+        "qdrant_publish_refused",
+        collection_name=collection_name,
+        incoming_points=incoming_points,
+        live_points=live_points,
+        required_minimum=minimum,
+    )
+    raise IndexShrinkRefused(
+        f"Refusing to publish '{collection_name}' with {incoming_points} points over the "
+        f"live index of {live_points} points (minimum "
+        f"{int(settings.index_publish_min_ratio * 100)}% = {minimum}). "
+        f"Run a full ingest, or set ALLOW_INDEX_SHRINK=true if the smaller index is intended."
+    )
+
+
 def publish_program_collection(collection_name: str) -> None:
     client = get_qdrant_client()
+    _assert_publish_is_safe(client, collection_name)
     operations = []
     if _collection_exists(client, PROGRAMS_COLLECTION_NAME):
         operations.append(

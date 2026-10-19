@@ -27,6 +27,7 @@ from app.models import Program
 from app.qdrant_client import (
     PROGRAMS_COLLECTION_NAME,
     PROGRAMS_COLLECTION_PREFIX,
+    IndexShrinkRefused,
     create_program_collection,
     delete_program_collection,
     get_qdrant_client,
@@ -544,7 +545,11 @@ def embed_programs(programs: List[Dict[str, Any]]) -> Tuple[str, int]:
 def publish_embeddings(programs: List[Dict[str, Any]]) -> Tuple[int, str]:
     previous_collection = get_active_program_collection_name()
     target_collection, embedded_rows = embed_programs(programs)
-    publish_program_collection(target_collection)
+    try:
+        publish_program_collection(target_collection)
+    except IndexShrinkRefused:
+        delete_program_collection(target_collection)
+        raise
     if previous_collection and previous_collection != target_collection:
         delete_program_collection(previous_collection)
 

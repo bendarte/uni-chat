@@ -32,6 +32,12 @@ class Settings:
     redis_url: str = field(default_factory=lambda: os.getenv("REDIS_URL", "redis://redis:6379"))
 
     qdrant_collection: str = field(default_factory=lambda: os.getenv("QDRANT_COLLECTION", "programs"))
+    index_publish_min_ratio: float = field(
+        default_factory=lambda: float(os.getenv("INDEX_PUBLISH_MIN_RATIO", "0.80"))
+    )
+    allow_index_shrink: bool = field(
+        default_factory=lambda: os.getenv("ALLOW_INDEX_SHRINK", "false").lower() == "true"
+    )
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     openai_embedding_model: str = field(
         default_factory=lambda: os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")

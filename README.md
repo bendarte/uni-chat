@@ -111,11 +111,24 @@ curl http://localhost:8000/health
 curl http://localhost:8000/ready
 ```
 
-### 3. Bootstrap programme data
+### 3. Ingest programme data
+
+Full ingest. Fetches every admission round from antagning.se, writes a raw
+snapshot to `backend/ingestion/raw/`, embeds all programmes and publishes a new
+Qdrant collection. This is what the live demo runs on, and what you want:
 
 ```bash
-docker compose exec -T backend python scripts/bootstrap_data.py
+docker compose exec -T backend python scripts/import_antagning.py
 ```
+
+For a quick development index instead, `scripts/bootstrap_data.py` crawls a
+sample capped at `CRAWL_TARGET_RECORDS` (400 by default). It is a sample, not a
+substitute: it will not reproduce the demo's catalogue.
+
+Publishing is guarded. The alias never moves from a populated collection to one
+holding less than `INDEX_PUBLISH_MIN_RATIO` (default 80%) of its points, so a
+capped or partial ingest cannot replace a complete index. Set
+`ALLOW_INDEX_SHRINK=true` when a smaller index is intended.
 
 ### 4. Start the frontend
 
@@ -137,7 +150,12 @@ Open `http://localhost:3000`.
 
 ## Quality Checks
 
+Run from the repository root:
+
 ```bash
-cd frontend && npm run build
-cd /Users/osman/ws/ai-tools/uni-chat && backend/.venv/bin/pytest backend/tests
+backend/.venv/bin/pytest backend/tests
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
 ```
+
+The frontend build prerenders pages that call the backend, so start the stack
+before building.
