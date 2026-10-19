@@ -13,6 +13,7 @@ env/
 # Frontend/Node
 node_modules/
 frontend/.next/
+frontend/tsconfig.tsbuildinfo
 dist/
 build/
 
