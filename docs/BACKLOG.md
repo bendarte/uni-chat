@@ -34,4 +34,4 @@ Findings that are out of scope for the step they were discovered in. Each entry 
 ## README
 
 - **Hardcoded local path** in `README.md:142`: `cd /Users/osman/ws/ai-tools/uni-chat && ...`. *(found in step 01)*
-- **The README claims deterministic guardrails for exclusions**, which step 01 disproved ("sjuksköterska men inte i Stockholm" returns a Stockholm programme). Fix the behaviour or the claim. *(found in step 01)*
+- **Exclusions are read as positive filters.** `POST /chat {"message": "sjuksköterska men inte i Stockholm"}` returns `active_filters.city = "Stockholm"` and a single recommendation at Karolinska Institutet in Stockholm, which is not a nursing programme either. The README claim about exclusion handling has been corrected to say so; step 02 fixes the behaviour. *(found in step 01)*

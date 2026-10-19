@@ -23,8 +23,11 @@ Live demo: `https://uni-chat-mu.vercel.app`
 - natural-language programme search with multi-turn chat
 - live filters for city, level, language, and study pace
 - semantic retrieval backed by embeddings and vector search
-- deterministic guardrails for hard constraints such as university and exclusions
+- deterministic filtering on city, level, language and study pace, applied after retrieval
 - grounded recommendation explanations based on retrieved programme metadata
+
+Exclusions ("nursing, but not in Stockholm") are not handled correctly yet: the
+constraint is currently read as a positive city filter. See `docs/BACKLOG.md`.
 
 ## Architecture
 
