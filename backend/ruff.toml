@@ -1,0 +1,23 @@
+# Lint configuration for the backend.
+#
+# Without this file the result of `ruff check` depends on whichever ruff version
+# happens to be installed, which makes the pre-push hook and CI disagree. The
+# selected set is ruff's default (pycodestyle errors and pyflakes) plus import
+# sorting. Line length follows the flake8 fallback the pre-push hook used
+# before ruff existed here: 130 columns, E501 not enforced.
+#
+# Widening this to bugbear, simplify, RUF and the pyupgrade rules is tracked in
+# docs/BACKLOG.md for step 06, together with the Python version decision those
+# rules depend on: 315 UP006 and 110 UP045 findings only apply once annotations
+# can assume Python 3.10, while the local virtualenv runs 3.9.
+target-version = "py39"
+line-length = 130
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[lint.per-file-ignores]
+# Standalone scripts put the repository root on sys.path before importing
+# anything from app/, so their imports cannot all sit at the top of the file.
+"scripts/*.py" = ["E402"]
+"ingestion/*.py" = ["E402"]

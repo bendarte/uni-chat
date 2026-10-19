@@ -3,20 +3,18 @@ Comprehensive backend test suite.
 Run with: .venv/bin/python scripts/run_full_test.py
 """
 
-import asyncio
 import json
+import os
 import random
 import sys
 import time
-import urllib.request
 import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Dict, Tuple
+from typing import Dict, Optional, Tuple
 from urllib.error import HTTPError, URLError
 
 import requests
-
-import os
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 API_KEY = os.environ.get("BACKEND_API_KEY", "")
@@ -236,7 +234,6 @@ def test_section_2():
         r1 = chat("Jag vill plugga ekonomi i Lund, kandidat", sid)
         summary1 = summarize_response(r1)
         print(f"    Turn 1: {summary1}")
-        recs1 = r1.get("recommendations", [])
         record("2-Conv", "Seq C Turn 1: ekonomi/Lund → response returned", True, summary1)
 
         r2 = chat("börja om", sid)

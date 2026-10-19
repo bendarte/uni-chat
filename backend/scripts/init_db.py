@@ -5,8 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.db import Base, engine
 from app import models  # noqa: F401
+from app.db import Base, engine
 from app.qdrant_client import ensure_program_collection
 
 

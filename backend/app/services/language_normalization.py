@@ -2,7 +2,6 @@ import re
 import unicodedata
 from typing import Iterable, List
 
-
 TOPIC_ALIASES = {
     "artificial intelligence": {
         "ai",

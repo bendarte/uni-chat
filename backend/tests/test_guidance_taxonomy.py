@@ -12,7 +12,6 @@ The profession names below are the ones that were historically failing
 in earlier sessions.
 """
 
-import pytest
 
 from app.services.guidance_tagging import infer_domains
 

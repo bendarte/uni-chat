@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.services.source_validation import is_valid_source_url, normalize_source_url
 from app.services.language_normalization import infer_primary_field
 from app.services.metadata_normalization import (
     normalize_city,
@@ -20,6 +19,7 @@ from app.services.metadata_normalization import (
     normalize_study_pace,
     normalize_university,
 )
+from app.services.source_validation import is_valid_source_url, normalize_source_url
 
 RAW = Path(__file__).resolve().parent / "programs_raw.json"
 OUT = Path(__file__).resolve().parent / "programs_parsed.json"
@@ -68,14 +68,14 @@ def parse_duration_years(value: Optional[str]) -> Optional[int]:
 def normalize_level(level: Optional[str]) -> Optional[str]:
     if not level:
         return None
-    l = level.strip().lower()
-    if "bachelor" in l or "undergraduate" in l:
+    normalized = level.strip().lower()
+    if "bachelor" in normalized or "undergraduate" in normalized:
         return "bachelor"
-    if "master" in l or "graduate" in l:
+    if "master" in normalized or "graduate" in normalized:
         return "master"
-    if "phd" in l or "doctor" in l:
+    if "phd" in normalized or "doctor" in normalized:
         return "phd"
-    return l
+    return normalized
 
 
 def build_program_id(source_url: str, name: Optional[str], university: Optional[str]) -> str:

@@ -2,7 +2,6 @@ import re
 import unicodedata
 from typing import Optional
 
-
 CITY_ALIASES = {
     "stockholm": "Stockholm",
     "solna": "Stockholm",

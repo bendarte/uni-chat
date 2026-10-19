@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 from urllib.parse import urlparse
 
 import requests

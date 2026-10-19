@@ -4,10 +4,8 @@ These are the pure classification functions that decide whether a program
 passes topic and track filters. No database or external API calls needed.
 """
 
-import pytest
 
 from app.services.recommendation_service import RecommendationService
-
 
 # ---------------------------------------------------------------------------
 # Helpers

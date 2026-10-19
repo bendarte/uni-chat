@@ -2,7 +2,6 @@
 input (e.g. "gbg", "su", "heltid") into canonical values used throughout the
 retrieval pipeline."""
 
-import pytest
 
 from app.services.metadata_normalization import (
     display_city,

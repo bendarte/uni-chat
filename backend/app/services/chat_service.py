@@ -3,8 +3,8 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas import ChatResponse, Citation, RecommendationItem
-from app.services.guidance_taxonomy import DOMAIN_FOLLOW_UP_QUESTIONS
 from app.services.guidance_policy import GuidancePolicy
+from app.services.guidance_taxonomy import DOMAIN_FOLLOW_UP_QUESTIONS
 from app.services.intent_service import IntentService
 from app.services.language_normalization import normalize_interests
 from app.services.metadata_normalization import (

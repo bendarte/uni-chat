@@ -4,7 +4,6 @@ These guard against junk URLs (empty, relative, course-catalogue paths)
 reaching the frontend as clickable links.
 """
 
-import pytest
 
 from app.services.source_validation import is_valid_source_url, normalize_source_url
 

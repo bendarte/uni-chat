@@ -5,9 +5,9 @@ from app.services.guidance_taxonomy import (
     BRIDGE_PATHS,
     DOMAIN_FOLLOW_UP_QUESTIONS,
     DOMAIN_KEYWORDS,
+    DOMAIN_SPECIFIC_ROLE_TERMS,
     MOTIVATION_GUIDANCE,
     SOCIETY_TECH_BRIDGE_PATHS,
-    DOMAIN_SPECIFIC_ROLE_TERMS,
     TRACK_KEYWORDS,
 )
 from app.services.metadata_normalization import CITY_ALIASES

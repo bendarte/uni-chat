@@ -15,7 +15,7 @@ Findings that are out of scope for the step they were discovered in. Each entry 
 
 ## Configuration and tooling
 
-- **No ruff configuration in the repo.** The 811 findings from step 01 come from ruff's defaults, so the number is not reproducible in CI. Check in a config and decide `target-version`: 479 UP006 and 146 UP045 findings only apply from Python 3.10 in annotations, and the local venv runs 3.9.6. *(found in step 01)*
+- **Widen the ruff rule set.** `backend/ruff.toml` now pins `target-version = "py39"`, 130 columns and ruff's default rules plus import sorting, which the backend passes cleanly. Adding bugbear, simplify and RUF would surface roughly 35 more findings, 12 of them `RUF012` mutable class defaults that are worth fixing. The pyupgrade rules (315 `UP006`, 110 `UP045` in `app/` alone) depend on a decision first: raise the local virtualenv from 3.9.6 to the 3.11 the container runs, or leave the annotations as they are. Note that `B008` must stay ignored — FastAPI's `Depends()` in argument defaults is the framework's idiom. *(found in step 01, narrowed in step 01b)*
 - **`ruff` is missing from `requirements-dev.txt`**, which only lists pytest and pytest-mock. *(found in step 01)*
 - **Python version mismatch.** Tests run on 3.9.6 locally, the container runs 3.11 (`backend/Dockerfile:1`). *(found in step 01)*
 - **`npm run build` silently depends on a live backend.** Without one, static generation throws two `TypeError: fetch failed` and still exits 0, producing empty pages. *(found in step 01)*

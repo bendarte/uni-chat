@@ -1,6 +1,5 @@
 """Embed programs that exist in Postgres but are missing from the active Qdrant collection."""
 import sys
-import uuid
 from pathlib import Path
 from typing import Dict, List
 
