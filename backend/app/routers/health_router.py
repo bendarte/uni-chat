@@ -26,7 +26,7 @@ def _check_postgres() -> DependencyStatus:
         return DependencyStatus(ok=True)
     except Exception as exc:
         log_event(logger, "warning", "postgres_readiness_failed", error=str(exc))
-        return DependencyStatus(ok=False, detail=str(exc))
+        return DependencyStatus(ok=False)
 
 
 def _check_redis() -> DependencyStatus:
@@ -34,10 +34,10 @@ def _check_redis() -> DependencyStatus:
         if SessionService().ping():
             return DependencyStatus(ok=True)
         log_event(logger, "warning", "redis_readiness_failed", error="Redis ping returned false")
-        return DependencyStatus(ok=False, detail="Redis ping returned false")
+        return DependencyStatus(ok=False)
     except Exception as exc:
         log_event(logger, "warning", "redis_readiness_failed", error=str(exc))
-        return DependencyStatus(ok=False, detail=str(exc))
+        return DependencyStatus(ok=False)
 
 
 def _check_qdrant() -> DependencyStatus:
@@ -49,7 +49,7 @@ def _check_qdrant() -> DependencyStatus:
         return DependencyStatus(ok=True)
     except Exception as exc:
         log_event(logger, "warning", "qdrant_readiness_failed", error=str(exc))
-        return DependencyStatus(ok=False, detail=str(exc))
+        return DependencyStatus(ok=False)
 
 
 @router.get("/ready", response_model=ReadinessResponse)
