@@ -26,4 +26,5 @@ def test_readiness_check_returns_503_when_dependency_fails(mocker):
 
     assert response.status_code == 503
     assert payload["ready"] is False
-    assert payload["dependencies"]["postgres"]["detail"] == "db down"
+    assert payload["dependencies"]["postgres"]["ok"] is False
+    # Deployment error details must remain in server-side logs, not public HTTP responses.
