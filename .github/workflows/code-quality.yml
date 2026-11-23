@@ -38,3 +38,17 @@ jobs:
           python-version: "3.11"
       - name: Check Python syntax
         run: python -m compileall -q backend
+
+  oracle-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Oracle Docker Compose configuration
+        env:
+          PUBLIC_HOSTNAME: example.com
+          POSTGRES_PASSWORD: testing-only-not-a-real-secret
+          POSTGRES_URL: postgresql+psycopg2://unichat:testing-only-not-a-real-secret@postgres:5432/university_ai
+          BACKEND_API_KEY: testing-backend-key
+          ADMIN_API_KEY: testing-admin-key
+          OPENAI_API_KEY: ""
+        run: docker compose -f deploy/oci/compose.yaml config --quiet
