@@ -124,6 +124,8 @@ function createSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+type ServiceStatus = "checking" | "ready" | "unavailable";
+
 export default function Home() {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -132,6 +134,7 @@ export default function Home() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [programCount, setProgramCount] = useState<number | null>(null);
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus>("checking");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -151,19 +154,26 @@ export default function Home() {
     setFilters({ ...DEFAULT_FILTERS, cities: [] });
     setSidebarOpen(false);
 
-    async function loadProgramCountOnMount() {
-      try {
-        const res = await fetch("/api/system/status");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (typeof data.programs === "number") {
-          setProgramCount(data.programs);
-        }
-      } catch {}
-    }
-
-    void loadProgramCountOnMount();
+    void checkBackendStatus();
+    const pollInterval = window.setInterval(() => {
+      void checkBackendStatus();
+    }, 30_000);
+    return () => window.clearInterval(pollInterval);
   }, []);
+
+  async function checkBackendStatus() {
+    try {
+      const res = await fetch("/api/system/status", { cache: "no-store" });
+      if (!res.ok) throw new Error("Backend unavailable");
+      const data = await res.json();
+      if (!data?.ready) throw new Error("Backend not ready");
+      setServiceStatus("ready");
+      setProgramCount(typeof data.programs === "number" ? data.programs : null);
+    } catch {
+      setServiceStatus("unavailable");
+      setProgramCount(null);
+    }
+  }
 
   function createFreshSession(): string {
     const nextSessionId = createSessionId();
@@ -222,8 +232,21 @@ export default function Home() {
       });
 
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status >= 500) setServiceStatus("unavailable");
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: typeof data?.error === "string" ? data.error : "Något gick fel. Försök igen.",
+          },
+        ]);
+        return;
+      }
+
+      setServiceStatus("ready");
       const answer: string =
-        data.answer ?? data.error ?? "Något gick fel. Försök igen.";
+        data.answer ?? "Inget svar mottogs från AI-tjänsten.";
       const recs: Recommendation[] = data.recommendations ?? [];
       if ("active_filters" in data) {
         setFilters(mapActiveFiltersToSidebarFilters(data.active_filters));
@@ -234,11 +257,12 @@ export default function Home() {
         { role: "assistant", content: answer, recommendations: recs },
       ]);
     } catch {
+      setServiceStatus("unavailable");
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Kunde inte nå servern. Kontrollera din anslutning.",
+          content: "Kunde inte nå AI-tjänsten. Försök igen när tjänsten är tillgänglig.",
         },
       ]);
     } finally {
@@ -260,8 +284,12 @@ export default function Home() {
     filters.study_pace ||
     filters.cities.length > 0;
   const programCountLabel =
-    programCount === null
-      ? "Program laddas"
+    serviceStatus === "unavailable"
+      ? "AI-tjänsten otillgänglig"
+      : serviceStatus === "checking"
+      ? "Kontrollerar tjänsten"
+      : programCount === null
+      ? "AI-tjänsten tillgänglig"
       : `${programCount.toLocaleString("sv-SE")} program indexerade`;
   const activeFilterLabels = [
     filters.level ? `Nivå: ${LEVEL_LABELS[filters.level] ?? filters.level}` : null,
@@ -342,6 +370,18 @@ export default function Home() {
         </div>
 
         <main className="flex min-h-[calc(100vh-112px)] flex-1 flex-col gap-4 sm:gap-5">
+          {serviceStatus === "unavailable" && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span>AI-tjänsten svarar inte just nu. Dina sökningar kan inte behandlas förrän backend är tillgänglig.</span>
+              <button
+                type="button"
+                onClick={() => void checkBackendStatus()}
+                className="rounded-full border border-amber-500 px-3 py-1.5 font-medium hover:bg-amber-100"
+              >
+                Kontrollera igen
+              </button>
+            </div>
+          )}
           <section className="overflow-hidden rounded-[32px] border border-[color:var(--line)] bg-[color:var(--card)] shadow-[var(--shadow)]">
             <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:gap-6 lg:p-8">
               <div className="space-y-4">

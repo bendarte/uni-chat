@@ -1,0 +1,54 @@
+name: Code quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          BACKEND_URL: "http://127.0.0.1:8000"
+          BACKEND_API_KEY: "ci-test-only-key"
+
+  backend-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check Python syntax
+        run: python -m compileall -q backend
+
+  oracle-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Oracle Docker Compose configuration
+        env:
+          PUBLIC_HOSTNAME: example.com
+          POSTGRES_PASSWORD: testing-only-not-a-real-secret
+          POSTGRES_URL: postgresql+psycopg2://unichat:testing-only-not-a-real-secret@postgres:5432/university_ai
+          BACKEND_API_KEY: testing-backend-key
+          ADMIN_API_KEY: testing-admin-key
+          OPENAI_API_KEY: ""
+        run: docker compose -f deploy/oci/compose.yaml config --quiet
